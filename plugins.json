@@ -1,0 +1,21 @@
+[
+    {
+        "iconUrl": "https://phim.nguonc.com/public/images/Logo/logonc.png",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/dah215/cloudstream-extensions-phisher",
+        "fileSize": 27443,
+        "status": 1,
+        "language": "vi",
+        "authors": [
+            "Aho"
+        ],
+        "tvTypes": [
+            "NguonC"
+        ],
+        "version": 10,
+        "internalName": "NguonC",
+        "description": "Aho (Lang) NguonC",
+        "url": "https://raw.githubusercontent.com/dah215/cloudstream-extensions-phisher/builds/NguonC.cs3",
+        "name": "NguonC"
+    }
+]
