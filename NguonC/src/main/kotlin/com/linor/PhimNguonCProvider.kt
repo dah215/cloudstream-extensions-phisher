@@ -108,9 +108,9 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val poster = FunctionHelpKt.getImageUrl(movie.posterUrl)
         val description = if (Utils.countWords(movie.content) > 15) movie.content else (imdb?.content ?: movie.content)
         
-        // SỬA LỖI ACTOR: Chuyển sang cấu trúc ActorData(Actor(name, image), role)
+        // SỬA LỖI ACTOR: Sử dụng constructor chuẩn của ActorData
         val actorsData = imdb?.cast?.map { 
-            ActorData(Actor(it.name, it.image), null as ActorRole?) 
+            ActorData(actor = Actor(it.name ?: "", it.image ?: ""), role = null) 
         }
 
         return if (type == TvType.TvSeries) {
@@ -146,13 +146,15 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
 
         val streamUrl = FunctionHelpKt.extractStreamUrl(url) ?: return false
         
-        // SỬA LỖI EXTRACTORLINK: Dùng hàm rút gọn khớp với template phisher98
+        // SỬA LỖI EXTRACTORLINK: Chuyển isM3u8 -> type = ExtractorLinkType.M3U8
         callback.invoke(
-            newExtractorLink(
-                server,
-                server,
-                streamUrl,
-                isM3u8 = true
+            ExtractorLink(
+                source = this.name,
+                name = server,
+                url = streamUrl,
+                referer = "",
+                quality = Qualities.Unknown.value,
+                type = ExtractorLinkType.M3U8
             )
         )
         return true
