@@ -68,7 +68,6 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         return parseMoviesList(items)
     }
 
-    @Suppress("DEPRECATION")
     override suspend fun load(url: String): LoadResponse? {
         val responseText = app.get(url).text
         val movieInfo = tryParseJson<MovieInfo>(responseText) ?: return null
@@ -108,9 +107,9 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val poster = FunctionHelpKt.getImageUrl(movie.posterUrl)
         val description = if (Utils.countWords(movie.content) > 15) movie.content else (imdb?.content ?: movie.content)
         
-        // SỬA LỖI ACTOR: Sử dụng constructor chuẩn của ActorData
+        // CÁCH FIX ACTOR CHUẨN KHO PHISHER98: 
         val actorsData = imdb?.cast?.map { 
-            ActorData(actor = Actor(it.name ?: "", it.image ?: ""), role = null) 
+             ActorData(Actor(it.name ?: "", it.image ?: ""), role = null, voiceActor = null)
         }
 
         return if (type == TvType.TvSeries) {
@@ -146,7 +145,8 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
 
         val streamUrl = FunctionHelpKt.extractStreamUrl(url) ?: return false
         
-        // SỬA LỖI EXTRACTORLINK: Chuyển isM3u8 -> type = ExtractorLinkType.M3U8
+        // FIX LỖI PRERELEASE: Không dùng type = ExtractorLinkType nữa vì bản Stable chưa có
+        // Dùng bộ tham số cơ bản nhất mà kho này đang dùng cho Ophim
         callback.invoke(
             ExtractorLink(
                 source = this.name,
@@ -154,7 +154,7 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
                 url = streamUrl,
                 referer = "",
                 quality = Qualities.Unknown.value,
-                type = ExtractorLinkType.M3U8
+                isM3u8 = true
             )
         )
         return true
