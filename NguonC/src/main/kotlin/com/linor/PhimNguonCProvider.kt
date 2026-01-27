@@ -68,6 +68,7 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         return parseMoviesList(items)
     }
 
+    @Suppress("DEPRECATION")
     override suspend fun load(url: String): LoadResponse? {
         val responseText = app.get(url).text
         val movieInfo = tryParseJson<MovieInfo>(responseText) ?: return null
@@ -107,9 +108,8 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val poster = FunctionHelpKt.getImageUrl(movie.posterUrl)
         val description = if (Utils.countWords(movie.content) > 15) movie.content else (imdb?.content ?: movie.content)
         
-        // CÁCH FIX ACTOR CHUẨN KHO PHISHER98: 
         val actorsData = imdb?.cast?.map { 
-             ActorData(Actor(it.name ?: "", it.image ?: ""), role = null, voiceActor = null)
+            ActorData(Actor(it.name, it.image), role = null) 
         }
 
         return if (type == TvType.TvSeries) {
@@ -133,6 +133,8 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         }
     }
 
+    // QUAN TRỌNG: Thêm dòng này để ép hệ thống bỏ qua lỗi Deprecated
+    @Suppress("DEPRECATION") 
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
@@ -145,8 +147,7 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
 
         val streamUrl = FunctionHelpKt.extractStreamUrl(url) ?: return false
         
-        // FIX LỖI PRERELEASE: Không dùng type = ExtractorLinkType nữa vì bản Stable chưa có
-        // Dùng bộ tham số cơ bản nhất mà kho này đang dùng cho Ophim
+        // Bây giờ ta có thể dùng Constructor cũ mà không bị lỗi Build nữa
         callback.invoke(
             ExtractorLink(
                 source = this.name,
