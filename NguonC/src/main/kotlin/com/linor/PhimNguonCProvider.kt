@@ -68,6 +68,7 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         return parseMoviesList(items)
     }
 
+    @Suppress("DEPRECATION")
     override suspend fun load(url: String): LoadResponse? {
         val responseText = app.get(url).text
         val movieInfo = tryParseJson<MovieInfo>(responseText) ?: return null
@@ -107,8 +108,10 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val poster = FunctionHelpKt.getImageUrl(movie.posterUrl)
         val description = if (Utils.countWords(movie.content) > 15) movie.content else (imdb?.content ?: movie.content)
         
-        // Chuyển đổi Actor sang ActorData để khớp với API mới nhất
-        val actorsData = imdb?.cast?.map { ActorData(it.name, it.image) }
+        // SỬA LỖI ACTOR: Chuyển sang cấu trúc ActorData(Actor(name, image), role)
+        val actorsData = imdb?.cast?.map { 
+            ActorData(Actor(it.name, it.image), null as ActorRole?) 
+        }
 
         return if (type == TvType.TvSeries) {
             newTvSeriesLoadResponse(movie.name, url, TvType.TvSeries, episodes) {
@@ -143,14 +146,12 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
 
         val streamUrl = FunctionHelpKt.extractStreamUrl(url) ?: return false
         
-        // Dùng newExtractorLink thay cho constructor để hết lỗi Deprecated
+        // SỬA LỖI EXTRACTORLINK: Dùng hàm rút gọn khớp với template phisher98
         callback.invoke(
             newExtractorLink(
-                source = this.name,
-                name = server,
-                url = streamUrl,
-                referer = "",
-                quality = Qualities.Unknown.value,
+                server,
+                server,
+                streamUrl,
                 isM3u8 = true
             )
         )
