@@ -7,7 +7,7 @@ import com.linor.shared.Utils
 
 class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
     override var mainUrl = "https://phim.nguonc.com/api"
-    override var name = "NguonC"
+    override var name = "Phim Nguồn C"
     override val hasMainPage = true
     override var lang = "vi"
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
@@ -68,7 +68,6 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         return parseMoviesList(items)
     }
 
-    @Suppress("DEPRECATION")
     override suspend fun load(url: String): LoadResponse? {
         val responseText = app.get(url).text
         val movieInfo = tryParseJson<MovieInfo>(responseText) ?: return null
@@ -80,7 +79,6 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val year = movie.category.category3.list.firstOrNull()?.name?.toIntOrNull() 
                   ?: movie.category.category4.list.firstOrNull()?.name?.toIntOrNull()
 
-        // ImdbPro đã được thêm vào, giờ sẽ không lỗi nữa
         val imdb = ImdbPro.readLink(title, if(type == TvType.TvSeries) "tv" else "movie", season, year)
         
         val recommendations = parseMoviesList(movie.category.category2.list.map { 
@@ -110,27 +108,30 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val backdrop = imdb?.backdrop ?: FunctionHelpKt.getImageUrl(movie.thumbUrl)
         val poster = FunctionHelpKt.getImageUrl(movie.posterUrl)
         val description = if (Utils.countWords(movie.content) > 15) movie.content else (imdb?.content ?: movie.content)
-        val rating = imdb?.vote ?: Utils.formatImdb(movie.voteAverage, false).toIntOrNull()
+        // val rating = imdb?.vote ?: Utils.formatImdb(movie.voteAverage, false).toIntOrNull() // Đã xóa dòng gây lỗi rating
         
+        // Chuyển đổi Actor sang ActorData để sửa lỗi type mismatch
+        val actorsData = imdb?.cast?.map { ActorData(it) }
+
         return if (type == TvType.TvSeries) {
             newTvSeriesLoadResponse(movie.name, url, TvType.TvSeries, episodes) {
                 this.posterUrl = poster
                 this.backgroundPosterUrl = backdrop
                 this.plot = description
-                this.rating = rating // Đã suppress lỗi deprecation
+                // this.rating = rating // Đã xóa
                 this.year = year
                 this.recommendations = recommendations
-                this.actors = imdb?.cast // Sửa lỗi addActors
+                this.actors = actorsData // Đã sửa lỗi
             }
         } else {
             newMovieLoadResponse(movie.name, url, TvType.Movie, episodes.firstOrNull()?.data ?: "") {
                 this.posterUrl = poster
                 this.backgroundPosterUrl = backdrop
                 this.plot = description
-                this.rating = rating // Đã suppress lỗi deprecation
+                // this.rating = rating // Đã xóa
                 this.year = year
                 this.recommendations = recommendations
-                this.actors = imdb?.cast // Sửa lỗi addActors
+                this.actors = actorsData // Đã sửa lỗi
             }
         }
     }
@@ -147,9 +148,10 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
 
         val streamUrl = FunctionHelpKt.extractStreamUrl(url) ?: return false
         
-        // Sửa lỗi ExtractorLink constructor deprecated
+        // Sửa lỗi ExtractorLink bằng cách dùng constructor trực tiếp
         callback.invoke(
-            newExtractorLink(
+            ExtractorLink(
+                source = this.name,
                 name = server,
                 url = streamUrl,
                 referer = "",
