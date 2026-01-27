@@ -34,7 +34,7 @@ object ImdbPro {
         val castData = tryParseJson<Json2Cast>(castResponse)
 
         val actors = castData?.cast?.map { 
-            Actor(it.name ?: "", getImageImdb(it.profilePath ?: "")) 
+            ImdbActor(it.name ?: "", getImageImdb(it.profilePath ?: ""))
         }
 
         val genres = detail?.genres?.map { it.name ?: "" }
