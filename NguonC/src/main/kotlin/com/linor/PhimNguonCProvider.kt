@@ -90,8 +90,6 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         movie.episodes.sortedBy { 
             if (it.serverName.contains("Thuyết Minh") || it.serverName.contains("Lồng Tiếng")) 0 else 1 
         }.forEachIndexed { index, server ->
-            val seasonName = server.serverName.replace(Regex("\\s*#\\d+\\s*$"), "").trim()
-            
             server.serverData.forEachIndexed { epIndex, item ->
                 val dataUrl = "${item.linkEmbed}@@@${server.serverName}"
                 val epName = if (item.name.contains("Tập", true)) item.name else "Tập ${item.name}"
@@ -108,30 +106,27 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val backdrop = imdb?.backdrop ?: FunctionHelpKt.getImageUrl(movie.thumbUrl)
         val poster = FunctionHelpKt.getImageUrl(movie.posterUrl)
         val description = if (Utils.countWords(movie.content) > 15) movie.content else (imdb?.content ?: movie.content)
-        // val rating = imdb?.vote ?: Utils.formatImdb(movie.voteAverage, false).toIntOrNull() // Đã xóa dòng gây lỗi rating
         
-        // Chuyển đổi Actor sang ActorData để sửa lỗi type mismatch
-        val actorsData = imdb?.cast?.map { ActorData(it) }
+        // Chuyển đổi Actor sang ActorData để khớp với API mới nhất
+        val actorsData = imdb?.cast?.map { ActorData(it.name, it.image) }
 
         return if (type == TvType.TvSeries) {
             newTvSeriesLoadResponse(movie.name, url, TvType.TvSeries, episodes) {
                 this.posterUrl = poster
                 this.backgroundPosterUrl = backdrop
                 this.plot = description
-                // this.rating = rating // Đã xóa
                 this.year = year
                 this.recommendations = recommendations
-                this.actors = actorsData // Đã sửa lỗi
+                this.actors = actorsData
             }
         } else {
             newMovieLoadResponse(movie.name, url, TvType.Movie, episodes.firstOrNull()?.data ?: "") {
                 this.posterUrl = poster
                 this.backgroundPosterUrl = backdrop
                 this.plot = description
-                // this.rating = rating // Đã xóa
                 this.year = year
                 this.recommendations = recommendations
-                this.actors = actorsData // Đã sửa lỗi
+                this.actors = actorsData
             }
         }
     }
@@ -148,9 +143,9 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
 
         val streamUrl = FunctionHelpKt.extractStreamUrl(url) ?: return false
         
-        // Sửa lỗi ExtractorLink bằng cách dùng constructor trực tiếp
+        // Dùng newExtractorLink thay cho constructor để hết lỗi Deprecated
         callback.invoke(
-            ExtractorLink(
+            newExtractorLink(
                 source = this.name,
                 name = server,
                 url = streamUrl,
