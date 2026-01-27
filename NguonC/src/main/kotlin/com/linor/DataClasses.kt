@@ -1,7 +1,6 @@
 package com.linor
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.lagradost.cloudstream3.Actor
 
 data class ListResponse(@JsonProperty("items") val items: List<MoviesResponse>)
 
@@ -58,10 +57,11 @@ data class EpisodeData(
     @JsonProperty("embed") val linkEmbed: String
 )
 
+// Sửa lại Lazy để chứa danh sách Actor đơn giản
 data class Lazy(
     val backdrop: String?,
     val content: String?,
-    val cast: List<Actor>?,
+    val cast: List<ImdbActor>?,
     val genres: List<String>?,
     val vote: Int?,
     val runtime: Int?,
@@ -69,9 +69,10 @@ data class Lazy(
     val country: String?
 )
 
+data class ImdbActor(val name: String, val image: String)
+
 data class ParsedTitle(val title: String, val season: String)
 
-// Classes for IMDB Pro
 data class Json2Detail(
     @JsonProperty("backdrop_path") val backdropPath: String?,
     @JsonProperty("overview") val content: String?,
