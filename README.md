@@ -2,7 +2,7 @@
 
 **Shortcode**: `phisherrepo`
 
----.
+---
 
 ### ❤️ Support
 
