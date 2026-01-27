@@ -1,18 +1,16 @@
 name: Build
 
-# https://docs.github.com/en/actions/learn-github-actions/workflow-syntax-for-github-actions#concurrency
 concurrency:
   group: "build"
   cancel-in-progress: true
 
 on:
+  workflow_dispatch:      # <--- Dòng này giúp hiện nút Run
   push:
     branches:
-      # choose your default branch
       - master
       - main
-    paths-ignore:
-      - '*.md'
+# Đã xóa đoạn paths-ignore để sửa file nào nó cũng chạy
 
 jobs:
   build:
