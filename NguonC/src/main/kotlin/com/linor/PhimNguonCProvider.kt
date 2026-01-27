@@ -1,8 +1,10 @@
+@file:Suppress("DEPRECATION")
 package com.linor
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
+import com.lagradost.cloudstream3.utils.AppUtils.PrereleaseApi
 import com.linor.shared.Utils
 
 class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
@@ -68,7 +70,7 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         return parseMoviesList(items)
     }
 
-    @Suppress("DEPRECATION")
+    @OptIn(PrereleaseApi::class)
     override suspend fun load(url: String): LoadResponse? {
         val responseText = app.get(url).text
         val movieInfo = tryParseJson<MovieInfo>(responseText) ?: return null
@@ -108,8 +110,9 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val poster = FunctionHelpKt.getImageUrl(movie.posterUrl)
         val description = if (Utils.countWords(movie.content) > 15) movie.content else (imdb?.content ?: movie.content)
         
+        // Sửa lỗi ActorData: Truyền đúng tham số cho constructor
         val actorsData = imdb?.cast?.map { 
-            ActorData(Actor(it.name, it.image), role = null) 
+            ActorData(actor = Actor(it.name, it.image), role = null, roleData = null, voiceActor = null)
         }
 
         return if (type == TvType.TvSeries) {
@@ -133,8 +136,7 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         }
     }
 
-    // QUAN TRỌNG: Thêm dòng này để ép hệ thống bỏ qua lỗi Deprecated
-    @Suppress("DEPRECATION") 
+    @OptIn(PrereleaseApi::class)
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
@@ -147,15 +149,13 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
 
         val streamUrl = FunctionHelpKt.extractStreamUrl(url) ?: return false
         
-        // Bây giờ ta có thể dùng Constructor cũ mà không bị lỗi Build nữa
+        // Sửa lỗi newExtractorLink: Dùng đúng tham số và OptIn PrereleaseApi
         callback.invoke(
-            ExtractorLink(
-                source = this.name,
+            newExtractorLink(
                 name = server,
+                source = this.name,
                 url = streamUrl,
-                referer = "",
-                quality = Qualities.Unknown.value,
-                isM3u8 = true
+                type = ExtractorLinkType.M3U8
             )
         )
         return true
