@@ -70,3 +70,23 @@ data class Lazy(
 )
 
 data class ParsedTitle(val title: String, val season: String)
+
+// Classes for IMDB Pro
+data class Json2Detail(
+    @JsonProperty("backdrop_path") val backdropPath: String?,
+    @JsonProperty("overview") val content: String?,
+    @JsonProperty("vote_average") val voteAverage: Double?,
+    @JsonProperty("runtime") val runtime: Int?,
+    @JsonProperty("last_episode_to_air") val lastEpisodeToAir: LastEpisodeToAir?,
+    @JsonProperty("genres") val genres: ArrayList<Genres>?,
+    @JsonProperty("origin_country") val country: List<String>?
+)
+
+data class LastEpisodeToAir(@JsonProperty("runtime") val runtime: Int?)
+data class Genres(@JsonProperty("name") val name: String?)
+
+data class Json2Cast(@JsonProperty("cast") val cast: ArrayList<Cast>?)
+data class Cast(
+    @JsonProperty("name") val name: String?,
+    @JsonProperty("profile_path") val profilePath: String?
+)
