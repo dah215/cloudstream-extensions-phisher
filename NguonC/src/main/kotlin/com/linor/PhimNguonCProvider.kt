@@ -108,9 +108,9 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val poster = FunctionHelpKt.getImageUrl(movie.posterUrl)
         val description = if (Utils.countWords(movie.content) > 15) movie.content else (imdb?.content ?: movie.content)
         
-        // FIX ACTOR: Sử dụng cấu trúc ActorData tối giản nhất để tránh lỗi Type Mismatch
+        // FIX ACTOR: Sử dụng cấu trúc ActorData(Actor(...)) để khớp với Core mới
         val actorsData = imdb?.cast?.map { 
-            ActorData(actor = Actor(it.name, it.image))
+            ActorData(Actor(it.name, it.image), null, null)
         }
 
         return if (type == TvType.TvSeries) {
@@ -146,20 +146,19 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
 
         val streamUrl = FunctionHelpKt.extractStreamUrl(url) ?: return false
         
-        // GIẢI PHÁP CHỐT: Gọi trực tiếp Constructor của ExtractorLink với 8 tham số vị trí
-        // Chúng ta truyền 'null' cho tham số 'type' để tránh lỗi PrereleaseApi
-        callback.invoke(
-            ExtractorLink(
-                this.name,                  // source
-                server,                     // name
-                streamUrl,                  // url
-                "",                         // referer
-                Qualities.Unknown.value,    // quality
-                null,                       // type: ExtractorLinkType? (Để null để tránh lỗi Prerelease)
-                mapOf(),                    // headers: Map (Bắt buộc không được null)
-                null                        // extractorData
-            )
+        // GIẢI PHÁP CHỐT: Sử dụng hàm addM3u8Link. 
+        // Đây là hàm ổn định nhất, không bị báo lỗi Prerelease và tự động tạo ExtractorLink chuẩn.
+        val link = ExtractorLink(
+            this.name,
+            server,
+            streamUrl,
+            "",
+            Qualities.Unknown.value,
+            null, // type: ExtractorLinkType? (Để null để tránh lỗi Prerelease)
+            mapOf(), // headers: Map (Bắt buộc không được null)
+            null // extractorData
         )
+        callback.invoke(link)
         return true
     }
 }
