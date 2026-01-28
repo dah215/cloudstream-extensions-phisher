@@ -108,9 +108,9 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val poster = FunctionHelpKt.getImageUrl(movie.posterUrl)
         val description = if (Utils.countWords(movie.content) > 15) movie.content else (imdb?.content ?: movie.content)
         
-        // Sửa lỗi ActorData: Chỉ truyền Actor, các tham số khác để mặc định
+        // FIX ACTOR: Chỉ truyền Actor object, để hệ thống tự điền các giá trị null còn lại
         val actorsData = imdb?.cast?.map { 
-            ActorData(actor = Actor(it.name, it.image))
+            ActorData(Actor(it.name ?: "", it.image ?: ""))
         }
 
         return if (type == TvType.TvSeries) {
@@ -146,16 +146,18 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
 
         val streamUrl = FunctionHelpKt.extractStreamUrl(url) ?: return false
         
-        // GIẢI PHÁP CHỐT: Sử dụng Named Arguments và mapOf() để tránh lỗi Null Map
+        // CHỐT HẠ: Gọi Constructor cũ theo đúng thứ tự vị trí (Positional Arguments)
+        // 1. source, 2. name, 3. url, 4. referer, 5. quality, 6. isM3u8 (Boolean), 7. headers (Map), 8. extractorData
         callback.invoke(
             ExtractorLink(
-                source = this.name,
-                name = server,
-                url = streamUrl,
-                referer = "",
-                quality = Qualities.Unknown.value,
-                type = ExtractorLinkType.M3U8,
-                headers = mapOf() // Bắt buộc phải là mapOf(), không được để null
+                this.name,                  // 1. source
+                server,                     // 2. name
+                streamUrl,                  // 3. url
+                "",                         // 4. referer
+                Qualities.Unknown.value,    // 5. quality
+                true,                       // 6. isM3u8 (Boolean) -> Tránh lỗi Prerelease
+                mapOf<String, String>(),    // 7. headers -> Tránh lỗi Null
+                null                        // 8. extractorData
             )
         )
         return true
