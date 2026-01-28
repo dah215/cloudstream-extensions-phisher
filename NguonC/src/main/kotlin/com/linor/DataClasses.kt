@@ -27,16 +27,7 @@ data class MovieDetailResponse(
     @JsonProperty("thumb_url") val thumbUrl: String?,
     @JsonProperty("poster_url") val posterUrl: String?,
     @JsonProperty("year") val year: Int?,
-    @JsonProperty("casts") val casts: String?,
-    @JsonProperty("category") val category: Map<String, CategoryGroup>?
-)
-
-data class CategoryGroup(
-    @JsonProperty("list") val list: List<CategoryItem>?
-)
-
-data class CategoryItem(
-    @JsonProperty("name") val name: String?
+    @JsonProperty("casts") val casts: String?
 )
 
 data class MovieEpisodeResponse(
@@ -46,6 +37,7 @@ data class MovieEpisodeResponse(
 
 data class EpisodeData(
     @JsonProperty("name") val name: String?,
+    @JsonProperty("slug") val slug: String?,
     @JsonProperty("link_m3u8") val linkM3u8: String?,
     @JsonProperty("link_embed") val linkEmbed: String?
 )
