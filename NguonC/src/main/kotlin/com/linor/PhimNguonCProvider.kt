@@ -38,10 +38,8 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
             newAnimeSearchResponse(movie.name ?: "", movieUrl, TvType.TvSeries) {
                 this.posterUrl = movie.thumbUrl ?: movie.posterUrl
                 addDubStatus(isDub, isSub, epsNum)
-                // FIX LỖI QUALITY: Chuyển String sang SearchQuality enum
-                this.quality = if (movie.quality?.contains("FHD", true) == true) SearchQuality.FHD 
-                              else if (movie.quality?.contains("HD", true) == true) SearchQuality.HD 
-                              else null
+                // SỬA LỖI FHD: Chỉ dùng SearchQuality.HD cho cả HD và FHD
+                this.quality = if (movie.quality?.contains("HD", true) == true || movie.quality?.contains("FHD", true) == true) SearchQuality.HD else null
             }
         }
     }
@@ -110,13 +108,12 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val url = parts.getOrNull(0) ?: return false
         val server = parts.getOrNull(1) ?: "Nguồn C"
 
-        // FIX LỖI EXTRACTORLINK: Dùng hàm newExtractorLink chuẩn của kho phisher98
+        // SỬA LỖI isM3u8: Chỉ truyền 3 tham số String cơ bản nhất
         callback.invoke(
             newExtractorLink(
                 name = server,
                 source = this.name,
-                url = url,
-                isM3u8 = url.contains(".m3u8")
+                url = url
             )
         )
         return true
