@@ -1,3 +1,4 @@
+@file:Suppress("DEPRECATION")
 package com.linor
 
 import com.lagradost.cloudstream3.*
@@ -19,116 +20,65 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
             "$mainUrl/films/the-loai/phim-hai" to "Phim Hài Hước",
             "$mainUrl/films/the-loai/hinh-su" to "Phim Hình Sự",
             "$mainUrl/films/the-loai/co-trang" to "Phim Cổ Trang",
-            "$mainUrl/films/the-loai/kinh-di" to "Phim Kinh Dị",
-            "$mainUrl/films/the-loai/hoat-hinh" to "Phim Anime",
-            "$mainUrl/films/quoc-gia/han-quoc" to "Phim Hàn Quốc",
-            "$mainUrl/films/quoc-gia/trung-quoc" to "Phim Trung Quốc",
-            "$mainUrl/films/quoc-gia/viet-nam" to "Phim Việt Nam"
+            "$mainUrl/films/the-loai/hoat-hinh" to "Phim Anime"
         )
 
         val result = items.map { (url, name) ->
-            val fullUrl = "$url?page=$page"
-            val response = app.get(fullUrl).text
-            val listResponse = tryParseJson<ListResponse>(response)
-            val movies = listResponse?.items ?: emptyList()
-            val homePageList = parseMoviesList(movies)
-            HomePageList(name, homePageList)
+            val response = app.get("$url?page=$page").text
+            val movies = tryParseJson<ListResponse>(response)?.items ?: emptyList()
+            HomePageList(name, parseMoviesList(movies))
         }
-        
         return newHomePageResponse(result)
     }
 
-    private suspend fun parseMoviesList(items: List<MoviesResponse>): List<SearchResponse> {
+    private fun parseMoviesList(items: List<MoviesResponse>): List<SearchResponse> {
         return items.mapNotNull { movie ->
-            val movieUrl = "$mainUrl/film/${movie.slug}"
-            val lang = movie.language?.lowercase() ?: ""
-            val dub = lang.contains("thuyết minh") || lang.contains("lồng tiếng")
-            val sub = lang.contains("vietsub")
-            
-            val poster = if (!movie.thumbUrl.isNullOrEmpty()) movie.thumbUrl else movie.posterUrl ?: return@mapNotNull null
-            
-            val epsRegex = Regex("\\((\\d+)/\\d+\\)")
-            val eps = movie.episode?.let { 
-                epsRegex.find(it)?.groupValues?.get(1)?.toIntOrNull() 
-                ?: Regex("\\d+").find(it)?.value?.toIntOrNull()
-            }
-
-            newAnimeSearchResponse(movie.name ?: "", movieUrl, TvType.TvSeries) {
-                this.posterUrl = FunctionHelpKt.getImageUrl(poster)
-                addDubStatus(dub, sub, eps, null)
+            newAnimeSearchResponse(movie.name ?: "", "$mainUrl/film/${movie.slug}", TvType.TvSeries) {
+                this.posterUrl = movie.thumbUrl ?: movie.posterUrl
             }
         }
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
-        val url = "$mainUrl/films/search?keyword=$query&page=1"
-        val response = app.get(url).text
-        val listResponse = tryParseJson<ListResponse>(response)
-        val items = listResponse?.items ?: emptyList()
+        val response = app.get("$mainUrl/films/search?keyword=$query").text
+        val items = tryParseJson<ListResponse>(response)?.items ?: emptyList()
         return parseMoviesList(items)
     }
 
     override suspend fun load(url: String): LoadResponse? {
         val responseText = app.get(url).text
-        val movieInfo = tryParseJson<MovieInfo>(responseText) ?: return null
-        val movie = movieInfo.movie
+        val data = tryParseJson<MovieInfo>(responseText) ?: return null
+        val movie = data.movie ?: return null
+        val episodesList = data.episodes ?: emptyList()
 
-        val type = if ((movie.episode_total ?: 0) > 1) TvType.TvSeries else TvType.Movie
-        
-        val (title, season) = FunctionHelpKt.parseTitleAndSeason(movie.origin_name ?: movie.name)
-        val year = movie.category.category3.list.firstOrNull()?.name?.toIntOrNull() 
-                  ?: movie.category.category4.list.firstOrNull()?.name?.toIntOrNull()
-
-        val imdb = ImdbPro.readLink(title, if(type == TvType.TvSeries) "tv" else "movie", season, year)
-        
-        val recommendations = parseMoviesList(movie.category.category2.list.map { 
-            MoviesResponse(it.name, "", "", "", "", "", "") 
-        }.filter { false }) 
+        val isTvSeries = (movie.episode_total?.toIntOrNull() ?: 0) > 1 || episodesList.any { (it.serverData?.size ?: 0) > 1 }
+        val type = if (isTvSeries) TvType.TvSeries else TvType.Movie
 
         val episodes = mutableListOf<Episode>()
-        
-        movie.episodes.sortedBy { 
-            if (it.serverName.contains("Thuyết Minh") || it.serverName.contains("Lồng Tiếng")) 0 else 1 
-        }.forEachIndexed { index, server ->
-            server.serverData.forEachIndexed { epIndex, item ->
-                val dataUrl = "${item.linkEmbed}@@@${server.serverName}"
-                val epName = if (item.name.contains("Tập", true)) item.name else "Tập ${item.name}"
-                
-                val ep = newEpisode(dataUrl) {
-                    this.name = epName
-                    this.season = index + 1
-                    this.episode = epIndex + 1
-                }
-                episodes.add(ep)
+        episodesList.forEachIndexed { sIndex, server ->
+            server.serverData?.forEachIndexed { eIndex, epData ->
+                val dataUrl = "${epData.linkEmbed}@@@${server.serverName}"
+                episodes.add(newEpisode(dataUrl) {
+                    this.name = epData.name
+                    this.season = sIndex + 1
+                    this.episode = eIndex + 1
+                })
             }
         }
 
-        val backdrop = imdb?.backdrop ?: FunctionHelpKt.getImageUrl(movie.thumbUrl)
-        val poster = FunctionHelpKt.getImageUrl(movie.posterUrl)
-        val description = if (Utils.countWords(movie.content) > 15) movie.content else (imdb?.content ?: movie.content)
-        
-        // FIX ACTOR: Cấu trúc chuẩn cho Cloudstream Stable
-        val actorsData = imdb?.cast?.map { 
-            ActorData(Actor(it.name, it.image), role = null, voiceActor = null)
-        }
+        val plot = movie.content?.replace(Regex("<.*?>"), "") // Xóa tag HTML nếu có
 
         return if (type == TvType.TvSeries) {
-            newTvSeriesLoadResponse(movie.name, url, TvType.TvSeries, episodes) {
-                this.posterUrl = poster
-                this.backgroundPosterUrl = backdrop
-                this.plot = description
-                this.year = year
-                this.recommendations = recommendations
-                this.actors = actorsData
+            newTvSeriesLoadResponse(movie.name ?: "", url, TvType.TvSeries, episodes) {
+                this.posterUrl = movie.posterUrl ?: movie.thumbUrl
+                this.plot = plot
+                this.year = movie.year
             }
         } else {
-            newMovieLoadResponse(movie.name, url, TvType.Movie, episodes.firstOrNull()?.data ?: "") {
-                this.posterUrl = poster
-                this.backgroundPosterUrl = backdrop
-                this.plot = description
-                this.year = year
-                this.recommendations = recommendations
-                this.actors = actorsData
+            newMovieLoadResponse(movie.name ?: "", url, TvType.Movie, episodes.firstOrNull()?.data ?: "") {
+                this.posterUrl = movie.posterUrl ?: movie.thumbUrl
+                this.plot = plot
+                this.year = movie.year
             }
         }
     }
@@ -141,17 +91,13 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
     ): Boolean {
         val parts = data.split("@@@")
         val url = parts.getOrNull(0) ?: return false
-        val server = parts.getOrNull(1) ?: ""
+        val server = parts.getOrNull(1) ?: "Nguồn C"
 
-        val streamUrl = FunctionHelpKt.extractStreamUrl(url) ?: return false
-        
-        // GIẢI PHÁP CHỐT: Sử dụng hàm addM3u8Link. 
-        // Đây là hàm ổn định nhất, không bị báo lỗi Prerelease và tự động tạo ExtractorLink chuẩn.
         callback.invoke(
             newExtractorLink(
                 name = server,
                 source = this.name,
-                url = streamUrl
+                url = url
             )
         )
         return true
