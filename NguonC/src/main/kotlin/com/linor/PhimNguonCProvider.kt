@@ -16,7 +16,8 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val items = listOf(
             "$mainUrl/films/danh-sach/phim-moi-cap-nhat" to "Phim Mới Cập Nhật",
             "$mainUrl/films/danh-sach/phim-bo" to "Phim Bộ",
-            "$mainUrl/films/danh-sach/phim-le" to "Phim Lẻ"
+            "$mainUrl/films/danh-sach/phim-le" to "Phim Lẻ",
+            "$mainUrl/films/the-loai/hoat-hinh" to "Phim Hoạt Hình"
         )
 
         val result = items.map { (url, name) ->
@@ -29,8 +30,20 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
 
     private fun parseMoviesList(items: List<MoviesResponse>): List<SearchResponse> {
         return items.mapNotNull { movie ->
-            newAnimeSearchResponse(movie.name ?: "", "$mainUrl/film/${movie.slug}", TvType.TvSeries) {
+            val movieUrl = "$mainUrl/film/${movie.slug}"
+            
+            // Lấy số tập hiện tại (Ví dụ: "Tập 23" -> 23)
+            val epsNum = movie.episode_current?.filter { it.isDigit() }?.toIntOrNull()
+            
+            // Kiểm tra Vietsub / Thuyết minh
+            val isDub = movie.lang?.contains("Thuyết Minh", true) == true
+            val isSub = movie.lang?.contains("Vietsub", true) == true
+
+            newAnimeSearchResponse(movie.name ?: "", movieUrl, TvType.TvSeries) {
                 this.posterUrl = movie.thumbUrl ?: movie.posterUrl
+                // HIỆN THÔNG TIN PHỤ ĐỀ VÀ SỐ TẬP NGOÀI TRANG CHỦ
+                addDubStatus(isDub, isSub, epsNum)
+                this.quality = movie.quality
             }
         }
     }
@@ -43,36 +56,32 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
 
     override suspend fun load(url: String): LoadResponse? {
         val responseText = app.get(url).text
-        // QUAN TRỌNG: Đọc dữ liệu từ gốc JSON
         val data = tryParseJson<MovieInfo>(responseText) ?: return null
         val movie = data.movie ?: return null
         val episodesList = data.episodes ?: emptyList()
 
         val episodes = mutableListOf<Episode>()
-        
-        // Duyệt qua danh sách episodes ngang hàng với movie
         episodesList.forEach { server ->
             val sName = server.serverName ?: "Nguồn C"
             server.serverData?.forEach { epData ->
-                // Lấy link m3u8 (ưu tiên) hoặc embed
-                val link = if (!epData.linkM3u8.isNullOrBlank()) epData.linkM3u8 else epData.linkEmbed
+                val link = epData.linkM3u8?.takeIf { it.isNotEmpty() } ?: epData.linkEmbed
                 if (!link.isNullOrBlank()) {
                     episodes.add(newEpisode("$link@@@$sName") {
-                        this.name = "Tập ${epData.name}"
-                        // Trích xuất số tập để Cloudstream hiển thị danh sách
+                        this.name = if (epData.name?.contains("Tập") == true) epData.name else "Tập ${epData.name}"
                         this.episode = epData.name?.filter { it.isDigit() }?.toIntOrNull()
                     })
                 }
             }
         }
 
+        // Xác định loại phim: Nếu là "series" hoặc có nhiều tập thì là TvSeries
         val isTvSeries = movie.type == "series" || episodes.size > 1
         val tvType = if (isTvSeries) TvType.TvSeries else TvType.Movie
 
         val plot = movie.content?.replace(Regex("<.*?>"), "")?.trim()
         val poster = movie.posterUrl ?: movie.thumbUrl
         
-        val actorsData = movie.casts?.split(",")?.map { 
+        val actorsData = movie.actor?.split(",")?.map { 
             ActorData(actor = Actor(it.trim(), "")) 
         }
 
@@ -84,7 +93,9 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
                 this.actors = actorsData
             }
         } else {
-            newMovieLoadResponse(movie.name ?: "", url, TvType.Movie, episodes.firstOrNull()?.data ?: "") {
+            // FIX LỖI "SẮP CÓ": Phim lẻ phải có link data ở đây
+            val firstLink = episodes.firstOrNull()?.data ?: ""
+            newMovieLoadResponse(movie.name ?: "", url, TvType.Movie, firstLink) {
                 this.posterUrl = poster
                 this.plot = plot
                 this.year = movie.year
