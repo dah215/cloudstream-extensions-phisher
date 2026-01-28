@@ -4,7 +4,6 @@ package com.linor
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
-import com.lagradost.cloudstream3.utils.AppUtils.PrereleaseApi
 import com.linor.shared.Utils
 
 class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
@@ -70,7 +69,6 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         return parseMoviesList(items)
     }
 
-    @OptIn(PrereleaseApi::class)
     override suspend fun load(url: String): LoadResponse? {
         val responseText = app.get(url).text
         val movieInfo = tryParseJson<MovieInfo>(responseText) ?: return null
@@ -110,9 +108,9 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val poster = FunctionHelpKt.getImageUrl(movie.posterUrl)
         val description = if (Utils.countWords(movie.content) > 15) movie.content else (imdb?.content ?: movie.content)
         
-        // Sửa lỗi ActorData: Truyền đúng tham số cho constructor
+        // Sửa lỗi ActorData: Dùng constructor đơn giản nhất để tương thích bản Stable
         val actorsData = imdb?.cast?.map { 
-            ActorData(actor = Actor(it.name, it.image), role = null, roleData = null, voiceActor = null)
+            ActorData(Actor(it.name, it.image), null, null)
         }
 
         return if (type == TvType.TvSeries) {
@@ -136,7 +134,6 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         }
     }
 
-    @OptIn(PrereleaseApi::class)
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
@@ -149,13 +146,16 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
 
         val streamUrl = FunctionHelpKt.extractStreamUrl(url) ?: return false
         
-        // Sửa lỗi newExtractorLink: Dùng đúng tham số và OptIn PrereleaseApi
+        // Sửa lỗi ExtractorLink: Dùng constructor cũ nhưng ép hệ thống bỏ qua cảnh báo
+        // Đây là cách an toàn nhất để chạy trên bản Stable
         callback.invoke(
-            newExtractorLink(
-                name = server,
-                source = this.name,
-                url = streamUrl,
-                type = ExtractorLinkType.M3U8
+            ExtractorLink(
+                this.name,
+                server,
+                streamUrl,
+                "",
+                Qualities.Unknown.value,
+                true
             )
         )
         return true
