@@ -11,9 +11,9 @@ data class MoviesResponse(
     @JsonProperty("slug") val slug: String? = null,
     @JsonProperty("thumb_url") val thumbUrl: String? = null,
     @JsonProperty("poster_url") val posterUrl: String? = null,
-    @JsonProperty("current_episode") val episode: String? = null, // Sửa tên biến
+    @JsonProperty("episode_current") val episode_current: String? = null,
     @JsonProperty("quality") val quality: String? = null,
-    @JsonProperty("language") val language: String? = null // Sửa tên biến
+    @JsonProperty("lang") val lang: String? = null
 )
 
 data class MovieInfo(
@@ -28,21 +28,20 @@ data class MovieDetailResponse(
     @JsonProperty("thumb_url") val thumbUrl: String? = null,
     @JsonProperty("poster_url") val posterUrl: String? = null,
     @JsonProperty("year") val year: Int? = null,
-    @JsonProperty("chieurap") val isTheater: Boolean? = null, // Thêm để check phim chiếu rạp
-    @JsonProperty("actor") val actor: List<String>? = null, // API trả về List String hoặc String
+    @JsonProperty("actor") val actor: List<String>? = null, // API trả về mảng tên diễn viên
     @JsonProperty("episode_total") val episode_total: String? = null
 )
 
 data class MovieEpisodeResponse(
     @JsonProperty("server_name") val serverName: String? = null,
-    @JsonProperty("items") val serverData: List<EpisodeData>? = null // QUAN TRỌNG: Sửa server_data thành items
+    @JsonProperty("server_data") val serverData: List<EpisodeData>? = null // ĐÃ SỬA LẠI ĐÚNG: server_data
 )
 
 data class EpisodeData(
     @JsonProperty("name") val name: String? = null,
     @JsonProperty("slug") val slug: String? = null,
-    @JsonProperty("m3u8") val linkM3u8: String? = null, // QUAN TRỌNG: Sửa link_m3u8 thành m3u8
-    @JsonProperty("embed") val linkEmbed: String? = null // QUAN TRỌNG: Sửa link_embed thành embed
+    @JsonProperty("link_m3u8") val linkM3u8: String? = null,
+    @JsonProperty("link_embed") val linkEmbed: String? = null
 )
 
 data class ParsedTitle(val title: String, val season: String)
