@@ -31,17 +31,12 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
     private fun parseMoviesList(items: List<MoviesResponse>): List<SearchResponse> {
         return items.mapNotNull { movie ->
             val movieUrl = "$mainUrl/film/${movie.slug}"
-            
-            // Lấy số tập hiện tại (Ví dụ: "Tập 23" -> 23)
             val epsNum = movie.episode_current?.filter { it.isDigit() }?.toIntOrNull()
-            
-            // Kiểm tra Vietsub / Thuyết minh
             val isDub = movie.lang?.contains("Thuyết Minh", true) == true
             val isSub = movie.lang?.contains("Vietsub", true) == true
 
             newAnimeSearchResponse(movie.name ?: "", movieUrl, TvType.TvSeries) {
                 this.posterUrl = movie.thumbUrl ?: movie.posterUrl
-                // HIỆN THÔNG TIN PHỤ ĐỀ VÀ SỐ TẬP NGOÀI TRANG CHỦ
                 addDubStatus(isDub, isSub, epsNum)
                 this.quality = movie.quality
             }
@@ -74,13 +69,13 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
             }
         }
 
-        // Xác định loại phim: Nếu là "series" hoặc có nhiều tập thì là TvSeries
         val isTvSeries = movie.type == "series" || episodes.size > 1
         val tvType = if (isTvSeries) TvType.TvSeries else TvType.Movie
 
         val plot = movie.content?.replace(Regex("<.*?>"), "")?.trim()
         val poster = movie.posterUrl ?: movie.thumbUrl
         
+        // Đã sửa từ 'casts' thành 'actor' cho khớp với DataClasses
         val actorsData = movie.actor?.split(",")?.map { 
             ActorData(actor = Actor(it.trim(), "")) 
         }
@@ -93,7 +88,6 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
                 this.actors = actorsData
             }
         } else {
-            // FIX LỖI "SẮP CÓ": Phim lẻ phải có link data ở đây
             val firstLink = episodes.firstOrNull()?.data ?: ""
             newMovieLoadResponse(movie.name ?: "", url, TvType.Movie, firstLink) {
                 this.posterUrl = poster
@@ -114,11 +108,15 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val url = parts.getOrNull(0) ?: return false
         val server = parts.getOrNull(1) ?: "Nguồn C"
 
+        // Dùng cách gọi an toàn nhất để tránh lỗi Prerelease và Deprecated
         callback.invoke(
-            newExtractorLink(
-                name = server,
-                source = this.name,
-                url = url
+            ExtractorLink(
+                this.name,
+                server,
+                url,
+                "",
+                Qualities.Unknown.value,
+                url.contains(".m3u8")
             )
         )
         return true
