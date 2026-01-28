@@ -17,6 +17,7 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
             "$mainUrl/films/danh-sach/phim-moi-cap-nhat" to "Phim Mới Cập Nhật",
             "$mainUrl/films/danh-sach/phim-bo" to "Phim Bộ",
             "$mainUrl/films/danh-sach/phim-le" to "Phim Lẻ",
+            "$mainUrl/films/the-loai/hanh-dong" to "Phim Hành Động",
             "$mainUrl/films/the-loai/hoat-hinh" to "Phim Hoạt Hình"
         )
 
@@ -34,12 +35,12 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
             val epsNum = movie.episode_current?.filter { it.isDigit() }?.toIntOrNull()
             val isDub = movie.lang?.contains("Thuyết Minh", true) == true
             val isSub = movie.lang?.contains("Vietsub", true) == true
+            val quality = if (movie.quality?.contains("HD", true) == true) SearchQuality.HD else null
 
             newAnimeSearchResponse(movie.name ?: "", movieUrl, TvType.TvSeries) {
                 this.posterUrl = movie.thumbUrl ?: movie.posterUrl
                 addDubStatus(isDub, isSub, epsNum)
-                // Hiển thị chất lượng HD nếu có
-                this.quality = if (movie.quality?.contains("HD", true) == true) SearchQuality.HD else null
+                this.quality = quality
             }
         }
     }
@@ -63,7 +64,7 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
                 val link = epData.linkM3u8?.takeIf { it.isNotEmpty() } ?: epData.linkEmbed
                 if (!link.isNullOrBlank()) {
                     val epName = epData.name ?: "Tập ?"
-                    // QUAN TRỌNG: Nếu không lấy được số tập, gán tạm thời để nó hiện ra
+                    // Fallback: Nếu không tìm thấy số tập, dùng index + 1 để đảm bảo luôn hiện
                     val epNum = epName.filter { it.isDigit() }.toIntOrNull() 
                     
                     episodes.add(newEpisode("$link@@@$sName") {
@@ -75,13 +76,20 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
             }
         }
 
-        val tvType = if (movie.type == "series" || episodes.size > 1) TvType.TvSeries else TvType.Movie
+        val isTvSeries = movie.type == "series" || episodes.size > 1
+        val tvType = if (isTvSeries) TvType.TvSeries else TvType.Movie
+
         val plot = movie.content?.replace(Regex("<.*?>"), "")?.trim()
         val poster = movie.posterUrl ?: movie.thumbUrl
         
-        // Fix Actor: Chuyển List<String> thành List<ActorData>
+        // Fix Actor: Lấy trực tiếp từ List<String>
         val actorsData = movie.actor?.map { 
             ActorData(actor = Actor(it.trim(), "")) 
+        }
+
+        // Lấy thể loại từ Map category
+        val tagsList = movie.category?.values?.flatMap { group -> 
+            group.list?.mapNotNull { it.name } ?: emptyList() 
         }
 
         return if (tvType == TvType.TvSeries) {
@@ -90,13 +98,16 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
                 this.plot = plot
                 this.year = movie.year
                 this.actors = actorsData
+                this.tags = tagsList
             }
         } else {
-            newMovieLoadResponse(movie.name ?: "", url, TvType.Movie, episodes.firstOrNull()?.data ?: "") {
+            val firstLink = episodes.firstOrNull()?.data ?: ""
+            newMovieLoadResponse(movie.name ?: "", url, TvType.Movie, firstLink) {
                 this.posterUrl = poster
                 this.plot = plot
                 this.year = movie.year
                 this.actors = actorsData
+                this.tags = tagsList
             }
         }
     }
