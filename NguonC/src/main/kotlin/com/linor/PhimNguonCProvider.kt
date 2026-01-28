@@ -108,9 +108,9 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val poster = FunctionHelpKt.getImageUrl(movie.posterUrl)
         val description = if (Utils.countWords(movie.content) > 15) movie.content else (imdb?.content ?: movie.content)
         
-        // SỬA LỖI ACTOR: Dùng constructor cơ bản nhất của ActorData để tránh lỗi tham số
+        // Sửa lỗi ActorData: Chỉ truyền Actor, các tham số khác để mặc định
         val actorsData = imdb?.cast?.map { 
-            ActorData(Actor(it.name, it.image), null, null)
+            ActorData(actor = Actor(it.name, it.image))
         }
 
         return if (type == TvType.TvSeries) {
@@ -146,18 +146,16 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
 
         val streamUrl = FunctionHelpKt.extractStreamUrl(url) ?: return false
         
-        // SỬA LỖI EXTRACTORLINK: Gọi trực tiếp Constructor với các tham số vị trí (positional arguments)
-        // Cách này sẽ bỏ qua việc kiểm tra tên tham số 'isM3u8' hay 'type'
+        // GIẢI PHÁP CHỐT: Sử dụng Named Arguments và mapOf() để tránh lỗi Null Map
         callback.invoke(
             ExtractorLink(
-                this.name,
-                server,
-                streamUrl,
-                "",
-                Qualities.Unknown.value,
-                ExtractorLinkType.M3U8, // Dùng Enum thay cho Boolean
-                null,
-                null
+                source = this.name,
+                name = server,
+                url = streamUrl,
+                referer = "",
+                quality = Qualities.Unknown.value,
+                type = ExtractorLinkType.M3U8,
+                headers = mapOf() // Bắt buộc phải là mapOf(), không được để null
             )
         )
         return true
