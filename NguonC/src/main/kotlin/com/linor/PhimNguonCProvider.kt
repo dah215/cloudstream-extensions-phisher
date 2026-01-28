@@ -66,19 +66,26 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
             }
         }
 
-        val plot = movie.content?.replace(Regex("<.*?>"), "") // Xóa tag HTML nếu có
+        val plot = movie.content?.replace(Regex("<.*?>"), "")
+        
+        // Fix ActorData cho bản Stable
+        val actorsData = movie.casts?.split(",")?.map { 
+            ActorData(Actor(it.trim(), ""), null, null)
+        }
 
         return if (type == TvType.TvSeries) {
             newTvSeriesLoadResponse(movie.name ?: "", url, TvType.TvSeries, episodes) {
                 this.posterUrl = movie.posterUrl ?: movie.thumbUrl
                 this.plot = plot
                 this.year = movie.year
+                this.actors = actorsData
             }
         } else {
             newMovieLoadResponse(movie.name ?: "", url, TvType.Movie, episodes.firstOrNull()?.data ?: "") {
                 this.posterUrl = movie.posterUrl ?: movie.thumbUrl
                 this.plot = plot
                 this.year = movie.year
+                this.actors = actorsData
             }
         }
     }
