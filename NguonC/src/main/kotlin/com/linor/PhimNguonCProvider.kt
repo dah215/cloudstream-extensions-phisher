@@ -1,4 +1,3 @@
-@file:Suppress("DEPRECATION")
 package com.linor
 
 import com.lagradost.cloudstream3.*
@@ -108,7 +107,6 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val poster = FunctionHelpKt.getImageUrl(movie.posterUrl)
         val description = if (Utils.countWords(movie.content) > 15) movie.content else (imdb?.content ?: movie.content)
         
-        // FIX ACTOR: Chỉ truyền Actor object, để hệ thống tự điền các giá trị null còn lại
         val actorsData = imdb?.cast?.map { 
             ActorData(Actor(it.name ?: "", it.image ?: ""))
         }
@@ -146,18 +144,16 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
 
         val streamUrl = FunctionHelpKt.extractStreamUrl(url) ?: return false
         
-        // CHỐT HẠ: Gọi Constructor cũ theo đúng thứ tự vị trí (Positional Arguments)
-        // 1. source, 2. name, 3. url, 4. referer, 5. quality, 6. isM3u8 (Boolean), 7. headers (Map), 8. extractorData
+        // GIẢI PHÁP CUỐI CÙNG: Sử dụng hàm newExtractorLink KHÔNG CÓ TÊN THAM SỐ
+        // Điều này giúp nó tự khớp với hàm helper có sẵn trong Core mà không bị báo lỗi Prerelease
         callback.invoke(
-            ExtractorLink(
-                this.name,                  // 1. source
-                server,                     // 2. name
-                streamUrl,                  // 3. url
-                "",                         // 4. referer
-                Qualities.Unknown.value,    // 5. quality
-                true,                       // 6. isM3u8 (Boolean) -> Tránh lỗi Prerelease
-                mapOf<String, String>(),    // 7. headers -> Tránh lỗi Null
-                null                        // 8. extractorData
+            newExtractorLink(
+                this.name,
+                server,
+                streamUrl,
+                "",
+                Qualities.Unknown.value,
+                true // isM3u8 kiểu Boolean cũ
             )
         )
         return true
