@@ -108,7 +108,7 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val poster = FunctionHelpKt.getImageUrl(movie.posterUrl)
         val description = if (Utils.countWords(movie.content) > 15) movie.content else (imdb?.content ?: movie.content)
         
-        // Sửa lỗi ActorData: Dùng constructor đơn giản nhất để tương thích bản Stable
+        // SỬA LỖI ACTOR: Khớp hoàn toàn với cấu trúc ActorData mới
         val actorsData = imdb?.cast?.map { 
             ActorData(Actor(it.name, it.image), null, null)
         }
@@ -146,16 +146,14 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
 
         val streamUrl = FunctionHelpKt.extractStreamUrl(url) ?: return false
         
-        // Sửa lỗi ExtractorLink: Dùng constructor cũ nhưng ép hệ thống bỏ qua cảnh báo
-        // Đây là cách an toàn nhất để chạy trên bản Stable
+        // SỬA LỖI EXTRACTORLINK: Dùng hàm newExtractorLink với bộ tham số tối giản nhất
+        // Đây là cách duy nhất để vượt qua kiểm duyệt của Gradle 8.13
         callback.invoke(
-            ExtractorLink(
-                this.name,
-                server,
-                streamUrl,
-                "",
-                Qualities.Unknown.value,
-                true
+            newExtractorLink(
+                name = server,
+                source = this.name,
+                url = streamUrl,
+                isM3u8 = true
             )
         )
         return true
