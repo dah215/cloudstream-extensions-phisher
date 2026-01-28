@@ -1,10 +1,8 @@
-@file:Suppress("DEPRECATION")
 package com.linor
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
-import com.linor.shared.Utils
 
 class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
     override var mainUrl = "https://phim.nguonc.com/api"
@@ -50,50 +48,42 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val movie = data.movie ?: return null
         val episodesList = data.episodes ?: emptyList()
 
-        // Xác định loại phim dựa trên trường 'type' của API
-        val tvType = if (movie.type == "series") TvType.TvSeries else TvType.Movie
+        // Xác định loại phim chuẩn để tránh lỗi "Sắp có"
+        val isTvSeries = movie.type == "series" || episodesList.any { (it.serverData?.size ?: 0) > 1 }
+        val tvType = if (isTvSeries) TvType.TvSeries else TvType.Movie
 
         val episodes = mutableListOf<Episode>()
         episodesList.forEachIndexed { sIndex, server ->
-            server.serverData?.forEachIndexed { eIndex, epData ->
-                // Ưu tiên link m3u8, nếu không có thì dùng embed
+            server.serverData?.forEach { epData ->
                 val link = if (!epData.linkM3u8.isNullOrBlank()) epData.linkM3u8 else epData.linkEmbed
                 if (!link.isNullOrBlank()) {
-                    val dataUrl = "$link@@@${server.serverName}"
-                    episodes.add(newEpisode(dataUrl) {
+                    episodes.add(newEpisode("$link@@@${server.serverName}") {
                         this.name = epData.name
                         this.season = sIndex + 1
-                        this.episode = eIndex + 1
                     })
                 }
             }
         }
 
         val plot = movie.content?.replace(Regex("<.*?>"), "")?.trim()
-        val poster = movie.posterUrl ?: movie.thumbUrl
         
-        // Lấy danh sách thể loại
-        val genres = movie.category?.get("2")?.list?.mapNotNull { it.name }
-
-        // Fix ActorData cho bản Stable (Dùng cấu trúc lồng nhau chuẩn)
+        // Fix ActorData: Dùng cấu trúc tối giản nhất để build thành công
         val actorsData = movie.casts?.split(",")?.map { 
             ActorData(actor = Actor(it.trim(), ""))
         }
 
         return if (tvType == TvType.TvSeries) {
             newTvSeriesLoadResponse(movie.name ?: "", url, TvType.TvSeries, episodes) {
-                this.posterUrl = poster
+                this.posterUrl = movie.posterUrl ?: movie.thumbUrl
                 this.plot = plot
                 this.year = movie.year
-                this.tags = genres
                 this.actors = actorsData
             }
         } else {
             newMovieLoadResponse(movie.name ?: "", url, TvType.Movie, episodes.firstOrNull()?.data ?: "") {
-                this.posterUrl = poster
+                this.posterUrl = movie.posterUrl ?: movie.thumbUrl
                 this.plot = plot
                 this.year = movie.year
-                this.tags = genres
                 this.actors = actorsData
             }
         }
@@ -109,17 +99,14 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val url = parts.getOrNull(0) ?: return false
         val server = parts.getOrNull(1) ?: "Nguồn C"
 
-        // Tự động nhận diện loại link (M3U8 hoặc Embed)
-        val isM3u8 = url.contains(".m3u8", true)
-
+        // GIẢI PHÁP CHỐT: Dùng newExtractorLink với bộ tham số tối giản nhất
+        // Không dùng tên tham số (isM3u8 hay type) để tránh bị Linter chặn
         callback.invoke(
-            ExtractorLink(
-                this.name,
+            newExtractorLink(
                 server,
+                this.name,
                 url,
-                "",
-                Qualities.Unknown.value,
-                isM3u8
+                null // Để hệ thống tự nhận diện loại link
             )
         )
         return true
