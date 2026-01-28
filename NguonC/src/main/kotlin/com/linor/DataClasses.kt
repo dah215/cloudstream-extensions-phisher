@@ -10,7 +10,10 @@ data class MoviesResponse(
     @JsonProperty("name") val name: String? = null,
     @JsonProperty("slug") val slug: String? = null,
     @JsonProperty("thumb_url") val thumbUrl: String? = null,
-    @JsonProperty("poster_url") val posterUrl: String? = null
+    @JsonProperty("poster_url") val posterUrl: String? = null,
+    @JsonProperty("episode_current") val episode_current: String? = null,
+    @JsonProperty("quality") val quality: String? = null,
+    @JsonProperty("lang") val lang: String? = null
 )
 
 data class MovieInfo(
@@ -25,7 +28,9 @@ data class MovieDetailResponse(
     @JsonProperty("thumb_url") val thumbUrl: String? = null,
     @JsonProperty("poster_url") val posterUrl: String? = null,
     @JsonProperty("year") val year: Int? = null,
-    @JsonProperty("casts") val casts: String? = null
+    @JsonProperty("actor") val actor: String? = null,
+    @JsonProperty("episode_total") val episode_total: String? = null,
+    @JsonProperty("lang") val lang: String? = null
 )
 
 data class MovieEpisodeResponse(
