@@ -27,7 +27,8 @@ data class MovieDetailResponse(
     @JsonProperty("poster_url") val posterUrl: String?,
     @JsonProperty("origin_name") val origin_name: String?,
     @JsonProperty("episode_total") val episode_total: String?,
-    @JsonProperty("year") val year: Int?
+    @JsonProperty("year") val year: Int?,
+    @JsonProperty("casts") val casts: String?
 )
 
 data class MovieEpisodeResponse(
@@ -41,5 +42,3 @@ data class EpisodeData(
     @JsonProperty("link_m3u8") val linkM3u8: String?,
     @JsonProperty("link_embed") val linkEmbed: String?
 )
-
-data class ParsedTitle(val title: String, val season: String)
