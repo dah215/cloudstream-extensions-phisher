@@ -48,40 +48,47 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val movie = data.movie ?: return null
         val episodesList = data.episodes ?: emptyList()
 
-        // Xác định loại phim chuẩn để tránh lỗi "Sắp có"
-        val isTvSeries = movie.type == "series" || episodesList.any { (it.serverData?.size ?: 0) > 1 }
-        val tvType = if (isTvSeries) TvType.TvSeries else TvType.Movie
+        // Ép kiểu TvSeries nếu có danh sách tập để tránh lỗi "Sắp có"
+        val tvType = if (movie.type == "series" || episodesList.any { (it.serverData?.size ?: 0) > 1 }) 
+                        TvType.TvSeries else TvType.Movie
 
         val episodes = mutableListOf<Episode>()
-        episodesList.forEachIndexed { sIndex, server ->
+        
+        // Duyệt qua từng server và từng tập phim
+        episodesList.forEach { server ->
+            val sName = server.serverName ?: "Nguồn C"
             server.serverData?.forEach { epData ->
-                val link = if (!epData.linkM3u8.isNullOrBlank()) epData.linkM3u8 else epData.linkEmbed
+                // Lấy link m3u8 hoặc embed
+                val link = epData.linkM3u8?.takeIf { it.isNotBlank() } ?: epData.linkEmbed
                 if (!link.isNullOrBlank()) {
-                    episodes.add(newEpisode("$link@@@${server.serverName}") {
+                    episodes.add(newEpisode("$link@@@$sName") {
                         this.name = epData.name
-                        this.season = sIndex + 1
+                        // Cloudstream cần season và episode để hiển thị danh sách
+                        this.episode = epData.name?.filter { it.isDigit() }?.toIntOrNull()
                     })
                 }
             }
         }
 
         val plot = movie.content?.replace(Regex("<.*?>"), "")?.trim()
+        val poster = movie.posterUrl ?: movie.thumbUrl
         
-        // Fix ActorData: Dùng cấu trúc tối giản nhất để build thành công
+        // Xử lý danh sách diễn viên an toàn để Build không lỗi
         val actorsData = movie.casts?.split(",")?.map { 
             ActorData(actor = Actor(it.trim(), ""))
         }
 
         return if (tvType == TvType.TvSeries) {
             newTvSeriesLoadResponse(movie.name ?: "", url, TvType.TvSeries, episodes) {
-                this.posterUrl = movie.posterUrl ?: movie.thumbUrl
+                this.posterUrl = poster
                 this.plot = plot
                 this.year = movie.year
                 this.actors = actorsData
             }
         } else {
+            // Đối với phim lẻ, vẫn truyền danh sách episodes để nút "Xem" hiện ra
             newMovieLoadResponse(movie.name ?: "", url, TvType.Movie, episodes.firstOrNull()?.data ?: "") {
-                this.posterUrl = movie.posterUrl ?: movie.thumbUrl
+                this.posterUrl = poster
                 this.plot = plot
                 this.year = movie.year
                 this.actors = actorsData
@@ -99,14 +106,12 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val url = parts.getOrNull(0) ?: return false
         val server = parts.getOrNull(1) ?: "Nguồn C"
 
-        // GIẢI PHÁP CHỐT: Dùng newExtractorLink với bộ tham số tối giản nhất
-        // Không dùng tên tham số (isM3u8 hay type) để tránh bị Linter chặn
+        // Sử dụng hàm newExtractorLink tối giản nhất để vượt qua Gradle 8.13
         callback.invoke(
             newExtractorLink(
                 server,
                 this.name,
-                url,
-                null // Để hệ thống tự nhận diện loại link
+                url
             )
         )
         return true
