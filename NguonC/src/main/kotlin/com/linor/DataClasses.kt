@@ -28,13 +28,24 @@ data class MovieDetailResponse(
     @JsonProperty("thumb_url") val thumbUrl: String? = null,
     @JsonProperty("poster_url") val posterUrl: String? = null,
     @JsonProperty("year") val year: Int? = null,
-    @JsonProperty("actor") val actor: List<String>? = null, // API trả về mảng tên diễn viên
-    @JsonProperty("episode_total") val episode_total: String? = null
+    // SỬA LỖI QUAN TRỌNG: actor là List<String> chứ không phải String
+    @JsonProperty("actor") val actor: List<String>? = null, 
+    @JsonProperty("episode_total") val episode_total: String? = null,
+    // Dùng Map để tránh lỗi cấu trúc category thay đổi
+    @JsonProperty("category") val category: Map<String, CategoryGroup>? = null
+)
+
+data class CategoryGroup(
+    @JsonProperty("list") val list: List<CategoryItem>? = null
+)
+
+data class CategoryItem(
+    @JsonProperty("name") val name: String? = null
 )
 
 data class MovieEpisodeResponse(
     @JsonProperty("server_name") val serverName: String? = null,
-    @JsonProperty("server_data") val serverData: List<EpisodeData>? = null // ĐÃ SỬA LẠI ĐÚNG: server_data
+    @JsonProperty("server_data") val serverData: List<EpisodeData>? = null
 )
 
 data class EpisodeData(
