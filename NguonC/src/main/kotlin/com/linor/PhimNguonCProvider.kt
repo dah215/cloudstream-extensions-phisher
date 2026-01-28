@@ -17,6 +17,7 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
             "$mainUrl/films/danh-sach/phim-moi-cap-nhat" to "Phim Mới Cập Nhật",
             "$mainUrl/films/danh-sach/phim-bo" to "Phim Bộ",
             "$mainUrl/films/danh-sach/phim-le" to "Phim Lẻ",
+            "$mainUrl/films/the-loai/hanh-dong" to "Phim Hành Động",
             "$mainUrl/films/the-loai/hoat-hinh" to "Phim Hoạt Hình"
         )
 
@@ -31,15 +32,26 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
     private fun parseMoviesList(items: List<MoviesResponse>): List<SearchResponse> {
         return items.mapNotNull { movie ->
             val movieUrl = "$mainUrl/film/${movie.slug}"
-            val epsNum = movie.episode_current?.filter { it.isDigit() }?.toIntOrNull()
-            val isDub = movie.lang?.contains("Thuyết Minh", true) == true
-            val isSub = movie.lang?.contains("Vietsub", true) == true
+            // Fix lỗi không hiện tập: Dùng trường 'episode' đã mapping đúng
+            val epsNum = movie.episode?.filter { it.isDigit() }?.toIntOrNull()
+            
+            // Fix lỗi không hiện Sub/Dub: Dùng trường 'language' đã mapping đúng
+            val isDub = movie.language?.contains("Thuyết Minh", true) == true || movie.language?.contains("Lồng Tiếng", true) == true
+            val isSub = movie.language?.contains("Vietsub", true) == true
+
+            // Fix lỗi lúc nào cũng HD: Kiểm tra kỹ hơn
+            val quality = when {
+                movie.quality?.contains("4K", true) == true -> SearchQuality.UHD
+                movie.quality?.contains("FHD", true) == true -> SearchQuality.HD // Cloudstream coi FHD là HD
+                movie.quality?.contains("HD", true) == true -> SearchQuality.HD
+                movie.quality?.contains("CAM", true) == true -> SearchQuality.Cam
+                else -> null
+            }
 
             newAnimeSearchResponse(movie.name ?: "", movieUrl, TvType.TvSeries) {
                 this.posterUrl = movie.thumbUrl ?: movie.posterUrl
                 addDubStatus(isDub, isSub, epsNum)
-                // SỬA LỖI FHD: Chỉ dùng SearchQuality.HD cho cả HD và FHD
-                this.quality = if (movie.quality?.contains("HD", true) == true || movie.quality?.contains("FHD", true) == true) SearchQuality.HD else null
+                this.quality = quality
             }
         }
     }
@@ -60,6 +72,7 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         episodesList.forEach { server ->
             val sName = server.serverName ?: "Nguồn C"
             server.serverData?.forEach { epData ->
+                // Fix lỗi Sắp có: Lấy đúng biến linkM3u8 (đã sửa trong DataClasses)
                 val link = epData.linkM3u8?.takeIf { it.isNotEmpty() } ?: epData.linkEmbed
                 if (!link.isNullOrBlank()) {
                     episodes.add(newEpisode("$link@@@$sName") {
@@ -76,7 +89,8 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val plot = movie.content?.replace(Regex("<.*?>"), "")?.trim()
         val poster = movie.posterUrl ?: movie.thumbUrl
         
-        val actorsData = movie.actor?.split(",")?.map { 
+        // Fix Actor: API có thể trả về List String hoặc null
+        val actorsData = movie.actor?.map { 
             ActorData(actor = Actor(it.trim(), "")) 
         }
 
@@ -108,7 +122,6 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val url = parts.getOrNull(0) ?: return false
         val server = parts.getOrNull(1) ?: "Nguồn C"
 
-        // SỬA LỖI isM3u8: Chỉ truyền 3 tham số String cơ bản nhất
         callback.invoke(
             newExtractorLink(
                 name = server,
