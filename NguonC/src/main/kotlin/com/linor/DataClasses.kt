@@ -21,7 +21,7 @@ data class MovieInfo(
 
 data class MovieDetailResponse(
     @JsonProperty("name") val name: String? = null,
-    @JsonProperty("slug") val slug: String? = null,
+    @JsonProperty("origin_name") val originName: String? = null,
     @JsonProperty("content") val content: String? = null,
     @JsonProperty("type") val type: String? = null,
     @JsonProperty("thumb_url") val thumbUrl: String? = null,
@@ -40,3 +40,6 @@ data class EpisodeData(
     @JsonProperty("link_m3u8") val linkM3u8: String? = null,
     @JsonProperty("link_embed") val linkEmbed: String? = null
 )
+
+// Dòng này cực kỳ quan trọng để hết lỗi Build
+data class ParsedTitle(val title: String, val season: String)
