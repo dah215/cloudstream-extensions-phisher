@@ -42,3 +42,6 @@ data class EpisodeData(
     @JsonProperty("link_m3u8") val linkM3u8: String?,
     @JsonProperty("link_embed") val linkEmbed: String?
 )
+
+// Thêm dòng này vào để sửa lỗi Unresolved reference
+data class ParsedTitle(val title: String, val season: String)
