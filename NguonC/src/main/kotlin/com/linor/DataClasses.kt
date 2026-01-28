@@ -19,7 +19,7 @@ data class MovieInfo(@JsonProperty("movie") val movie: MovieDetailResponse)
 data class MovieDetailResponse(
     @JsonProperty("name") val name: String,
     @JsonProperty("slug") val slug: String,
-    @JsonProperty("content") val content: String,
+    @JsonProperty("description") val content: String,
     @JsonProperty("thumb_url") val thumbUrl: String,
     @JsonProperty("poster_url") val posterUrl: String,
     @JsonProperty("casts") val casts: String?,
@@ -57,7 +57,6 @@ data class EpisodeData(
     @JsonProperty("embed") val linkEmbed: String
 )
 
-// Sửa lại Lazy để chứa danh sách Actor đơn giản
 data class Lazy(
     val backdrop: String?,
     val content: String?,
@@ -70,7 +69,6 @@ data class Lazy(
 )
 
 data class ImdbActor(val name: String, val image: String)
-
 data class ParsedTitle(val title: String, val season: String)
 
 data class Json2Detail(
