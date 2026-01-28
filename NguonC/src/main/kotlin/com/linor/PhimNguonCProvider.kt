@@ -1,3 +1,4 @@
+@file:Suppress("DEPRECATION")
 package com.linor
 
 import com.lagradost.cloudstream3.*
@@ -107,8 +108,9 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val poster = FunctionHelpKt.getImageUrl(movie.posterUrl)
         val description = if (Utils.countWords(movie.content) > 15) movie.content else (imdb?.content ?: movie.content)
         
+        // FIX ACTOR: Sử dụng cấu trúc ActorData tối giản nhất để tránh lỗi Type Mismatch
         val actorsData = imdb?.cast?.map { 
-            ActorData(Actor(it.name ?: "", it.image ?: ""))
+            ActorData(actor = Actor(it.name, it.image))
         }
 
         return if (type == TvType.TvSeries) {
@@ -144,16 +146,18 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
 
         val streamUrl = FunctionHelpKt.extractStreamUrl(url) ?: return false
         
-        // GIẢI PHÁP CUỐI CÙNG: Sử dụng hàm newExtractorLink KHÔNG CÓ TÊN THAM SỐ
-        // Điều này giúp nó tự khớp với hàm helper có sẵn trong Core mà không bị báo lỗi Prerelease
+        // GIẢI PHÁP CHỐT: Gọi trực tiếp Constructor của ExtractorLink với 8 tham số vị trí
+        // Chúng ta truyền 'null' cho tham số 'type' để tránh lỗi PrereleaseApi
         callback.invoke(
-            newExtractorLink(
-                this.name,
-                server,
-                streamUrl,
-                "",
-                Qualities.Unknown.value,
-                true // isM3u8 kiểu Boolean cũ
+            ExtractorLink(
+                this.name,                  // source
+                server,                     // name
+                streamUrl,                  // url
+                "",                         // referer
+                Qualities.Unknown.value,    // quality
+                null,                       // type: ExtractorLinkType? (Để null để tránh lỗi Prerelease)
+                mapOf(),                    // headers: Map (Bắt buộc không được null)
+                null                        // extractorData
             )
         )
         return true
