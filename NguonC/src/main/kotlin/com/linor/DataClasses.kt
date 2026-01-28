@@ -21,14 +21,22 @@ data class MovieInfo(
 
 data class MovieDetailResponse(
     @JsonProperty("name") val name: String?,
-    @JsonProperty("slug") val slug: String?,
+    @JsonProperty("origin_name") val originName: String?,
     @JsonProperty("content") val content: String?,
+    @JsonProperty("type") val type: String?,
     @JsonProperty("thumb_url") val thumbUrl: String?,
     @JsonProperty("poster_url") val posterUrl: String?,
-    @JsonProperty("origin_name") val origin_name: String?,
-    @JsonProperty("episode_total") val episode_total: String?,
     @JsonProperty("year") val year: Int?,
-    @JsonProperty("casts") val casts: String?
+    @JsonProperty("casts") val casts: String?,
+    @JsonProperty("category") val category: Map<String, CategoryGroup>?
+)
+
+data class CategoryGroup(
+    @JsonProperty("list") val list: List<CategoryItem>?
+)
+
+data class CategoryItem(
+    @JsonProperty("name") val name: String?
 )
 
 data class MovieEpisodeResponse(
@@ -38,10 +46,8 @@ data class MovieEpisodeResponse(
 
 data class EpisodeData(
     @JsonProperty("name") val name: String?,
-    @JsonProperty("slug") val slug: String?,
     @JsonProperty("link_m3u8") val linkM3u8: String?,
     @JsonProperty("link_embed") val linkEmbed: String?
 )
 
-// Thêm dòng này vào để sửa lỗi Unresolved reference
 data class ParsedTitle(val title: String, val season: String)
