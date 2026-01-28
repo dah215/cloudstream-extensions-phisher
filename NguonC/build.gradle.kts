@@ -18,5 +18,5 @@ cloudstream {
     tvTypes = listOf("NguonC")
     iconUrl = "https://phim.nguonc.com/public/images/Logo/logonc.png"
 
-    isCrossPlatform = true
+    isCrossPlatform = false
 }
