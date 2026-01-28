@@ -19,7 +19,7 @@ data class MovieInfo(@JsonProperty("movie") val movie: MovieDetailResponse)
 data class MovieDetailResponse(
     @JsonProperty("name") val name: String,
     @JsonProperty("slug") val slug: String,
-    @JsonProperty("description") val content: String,
+    @JsonProperty("content") val content: String,
     @JsonProperty("thumb_url") val thumbUrl: String,
     @JsonProperty("poster_url") val posterUrl: String,
     @JsonProperty("casts") val casts: String?,
