@@ -1,4 +1,3 @@
-@file:Suppress("DEPRECATION")
 package com.linor
 
 import com.lagradost.cloudstream3.*
@@ -108,9 +107,9 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val poster = FunctionHelpKt.getImageUrl(movie.posterUrl)
         val description = if (Utils.countWords(movie.content) > 15) movie.content else (imdb?.content ?: movie.content)
         
-        // FIX ACTOR: Sử dụng cấu trúc ActorData(Actor(...)) để khớp với Core mới
+        // FIX ACTOR: Cấu trúc chuẩn cho Cloudstream Stable
         val actorsData = imdb?.cast?.map { 
-            ActorData(Actor(it.name, it.image), null, null)
+            ActorData(Actor(it.name, it.image), role = null, voiceActor = null)
         }
 
         return if (type == TvType.TvSeries) {
@@ -148,17 +147,13 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         
         // GIẢI PHÁP CHỐT: Sử dụng hàm addM3u8Link. 
         // Đây là hàm ổn định nhất, không bị báo lỗi Prerelease và tự động tạo ExtractorLink chuẩn.
-        val link = ExtractorLink(
-            this.name,
-            server,
-            streamUrl,
-            "",
-            Qualities.Unknown.value,
-            null, // type: ExtractorLinkType? (Để null để tránh lỗi Prerelease)
-            mapOf(), // headers: Map (Bắt buộc không được null)
-            null // extractorData
+        callback.invoke(
+            newExtractorLink(
+                name = server,
+                source = this.name,
+                url = streamUrl
+            )
         )
-        callback.invoke(link)
         return true
     }
 }
