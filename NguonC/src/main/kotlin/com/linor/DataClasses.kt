@@ -28,7 +28,6 @@ data class MovieInfo(
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class MovieDetailResponse(
     @JsonProperty("name") val name: String? = null,
-    @JsonProperty("origin_name") val originName: String? = null,
     @JsonProperty("content") val content: String? = null,
     @JsonProperty("type") val type: String? = null,
     @JsonProperty("thumb_url") val thumbUrl: String? = null,
@@ -36,27 +35,27 @@ data class MovieDetailResponse(
     @JsonProperty("year") val year: Int? = null,
     @JsonProperty("actor") val actor: List<String>? = null,
     @JsonProperty("episode_total") val episode_total: String? = null,
-    // SỬA LỖI CRASH: Đưa về List<CategoryItem> để khớp với mọi phim
-    @JsonProperty("category") val category: List<CategoryItem>? = null
-)
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-data class CategoryItem(
-    @JsonProperty("name") val name: String? = null
+    // QUAN TRỌNG: Dùng Any để chấp nhận cả List và Map -> Hết lỗi Crash
+    @JsonProperty("category") val category: Any? = null
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class MovieEpisodeResponse(
     @JsonProperty("server_name") val serverName: String? = null,
-    @JsonProperty("server_data") val serverData: List<EpisodeData>? = null
+    // Dự phòng cả 2 trường hợp tên biến
+    @JsonProperty("server_data") val serverData: List<EpisodeData>? = null,
+    @JsonProperty("items") val items: List<EpisodeData>? = null
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class EpisodeData(
     @JsonProperty("name") val name: String? = null,
     @JsonProperty("slug") val slug: String? = null,
+    // Dự phòng tất cả các kiểu tên link có thể có -> Hết lỗi Sắp có
     @JsonProperty("link_m3u8") val linkM3u8: String? = null,
-    @JsonProperty("link_embed") val linkEmbed: String? = null
+    @JsonProperty("m3u8") val m3u8: String? = null,
+    @JsonProperty("link_embed") val linkEmbed: String? = null,
+    @JsonProperty("embed") val embed: String? = null
 )
 
 data class ParsedTitle(val title: String, val season: String)
