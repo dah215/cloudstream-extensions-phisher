@@ -4,7 +4,6 @@ package com.linor
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
-import com.linor.shared.Utils
 
 class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
     override var mainUrl = "https://phim.nguonc.com/api"
@@ -62,10 +61,8 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         
         episodesList.forEachIndexed { index, server ->
             val sName = server.serverName ?: "Server ${index + 1}"
-            // QUAN TRỌNG: Kiểm tra cả serverData và items
-            val dataList = server.serverData ?: server.items
-            
-            dataList?.forEach { epData ->
+            // SỬA: Lấy dữ liệu từ biến 'items' đã khai báo đúng trong DataClasses
+            server.items?.forEach { epData ->
                 val link = epData.linkM3u8?.takeIf { it.isNotEmpty() } ?: epData.linkEmbed
                 if (!link.isNullOrBlank()) {
                     val epName = epData.name ?: "Full"
@@ -83,7 +80,6 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val isTvSeries = movie.type == "series" || episodes.size > 1
         val tvType = if (isTvSeries) TvType.TvSeries else TvType.Movie
 
-        // Làm sạch nội dung mô tả
         val plot = movie.content?.replace(Regex("<.*?>"), "")?.trim()
         val poster = movie.posterUrl ?: movie.thumbUrl
         
@@ -91,10 +87,8 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
             ActorData(actor = Actor(it.trim(), "")) 
         }
 
-        // Lấy danh sách thể loại để hiển thị Tags
-        val tagsList = movie.category?.values?.flatMap { group -> 
-            group.list?.mapNotNull { it.name } ?: emptyList() 
-        }
+        // SỬA: Lấy thể loại từ List<CategoryItem>
+        val tagsList = movie.category?.mapNotNull { it.name }
 
         return if (tvType == TvType.TvSeries) {
             newTvSeriesLoadResponse(movie.name ?: "", url, TvType.TvSeries, episodes) {
