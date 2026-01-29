@@ -34,16 +34,9 @@ data class MovieDetailResponse(
     @JsonProperty("thumb_url") val thumbUrl: String? = null,
     @JsonProperty("poster_url") val posterUrl: String? = null,
     @JsonProperty("year") val year: Int? = null,
-    // Nguồn C trả về casts dạng chuỗi "A, B, C"
-    @JsonProperty("casts") val casts: String? = null,
+    @JsonProperty("actor") val actor: List<String>? = null,
     @JsonProperty("episode_total") val episode_total: String? = null,
-    // Category là Map, không phải List
-    @JsonProperty("category") val category: Map<String, CategoryGroup>? = null
-)
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-data class CategoryGroup(
-    @JsonProperty("list") val list: List<CategoryItem>? = null
+    @JsonProperty("category") val category: List<CategoryItem>? = null
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -61,6 +54,7 @@ data class MovieEpisodeResponse(
 data class EpisodeData(
     @JsonProperty("name") val name: String? = null,
     @JsonProperty("slug") val slug: String? = null,
+    // SỬA LẠI ĐÚNG: Phải là link_m3u8 và link_embed
     @JsonProperty("link_m3u8") val linkM3u8: String? = null,
     @JsonProperty("link_embed") val linkEmbed: String? = null
 )
