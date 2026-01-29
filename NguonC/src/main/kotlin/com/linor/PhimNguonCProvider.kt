@@ -90,18 +90,21 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val plot = movie.content?.replace(Regex("<.*?>"), "")?.trim()
         val poster = movie.posterUrl ?: movie.thumbUrl
         
-        val actorsData = movie.actor?.map { 
-            ActorData(actor = Actor(it.trim(), "")) 
+        // Xử lý Actor đa hình (String hoặc List)
+        val actorList = when (val a = movie.actor) {
+            is String -> a.split(",").map { it.trim() }
+            is List<*> -> a.mapNotNull { it.toString() }
+            else -> emptyList()
         }
+        val actorsData = actorList.map { ActorData(actor = Actor(it, "")) }
 
         // Xử lý Category đa hình (Map hoặc List)
         val tagsList = mutableListOf<String>()
         try {
             val cat = movie.category
             if (cat is Map<*, *>) {
-                // Trường hợp là Map (như phim bộ)
                 cat.values.forEach { group ->
-                    if (group is Map<*, *>) { // JSON object -> Map
+                    if (group is Map<*, *>) {
                         val list = group["list"] as? List<*>
                         list?.forEach { item ->
                             if (item is Map<*, *>) {
@@ -111,16 +114,13 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
                     }
                 }
             } else if (cat is List<*>) {
-                // Trường hợp là List (như phim lẻ)
                 cat.forEach { item ->
                     if (item is Map<*, *>) {
                         (item["name"] as? String)?.let { tagsList.add(it) }
                     }
                 }
             }
-        } catch (e: Exception) {
-            // Bỏ qua lỗi parse category để không crash app
-        }
+        } catch (e: Exception) { }
 
         return if (tvType == TvType.TvSeries) {
             newTvSeriesLoadResponse(movie.name ?: "", url, TvType.TvSeries, episodes) {
