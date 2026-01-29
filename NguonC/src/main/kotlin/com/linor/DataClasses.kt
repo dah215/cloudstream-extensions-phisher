@@ -36,6 +36,7 @@ data class MovieDetailResponse(
     @JsonProperty("year") val year: Int? = null,
     @JsonProperty("actor") val actor: List<String>? = null,
     @JsonProperty("episode_total") val episode_total: String? = null,
+    // SỬA LỖI CRASH: Đưa về List<CategoryItem> để khớp với mọi phim
     @JsonProperty("category") val category: List<CategoryItem>? = null
 )
 
@@ -54,7 +55,6 @@ data class MovieEpisodeResponse(
 data class EpisodeData(
     @JsonProperty("name") val name: String? = null,
     @JsonProperty("slug") val slug: String? = null,
-    // SỬA LẠI ĐÚNG: Phải là link_m3u8 và link_embed
     @JsonProperty("link_m3u8") val linkM3u8: String? = null,
     @JsonProperty("link_embed") val linkEmbed: String? = null
 )
