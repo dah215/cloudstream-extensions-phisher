@@ -62,9 +62,7 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         episodesList.forEachIndexed { index, server ->
             val sName = server.serverName ?: "Server ${index + 1}"
             server.serverData?.forEach { epData ->
-                // Lấy link: Ưu tiên m3u8
                 val link = epData.linkM3u8?.takeIf { it.isNotEmpty() } ?: epData.linkEmbed
-                
                 if (!link.isNullOrBlank()) {
                     val epName = epData.name ?: "Full"
                     val epNum = epName.filter { it.isDigit() }.toIntOrNull()
@@ -88,6 +86,7 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
             ActorData(actor = Actor(it.trim(), "")) 
         }
 
+        // SỬA LỖI CRASH: Lấy category từ List an toàn
         val tagsList = movie.category?.mapNotNull { it.name }
 
         return if (tvType == TvType.TvSeries) {
@@ -99,7 +98,6 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
                 this.tags = tagsList
             }
         } else {
-            // Lấy link đầu tiên cho phim lẻ
             val firstLink = episodes.firstOrNull()?.data ?: ""
             newMovieLoadResponse(movie.name ?: "", url, TvType.Movie, firstLink) {
                 this.posterUrl = poster
