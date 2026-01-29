@@ -61,11 +61,12 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         
         episodesList.forEachIndexed { index, server ->
             val sName = server.serverName ?: "Server ${index + 1}"
-            // SỬA: Lấy dữ liệu từ biến 'items' đã khai báo đúng trong DataClasses
-            server.items?.forEach { epData ->
+            // Đọc đúng trường serverData
+            server.serverData?.forEach { epData ->
                 val link = epData.linkM3u8?.takeIf { it.isNotEmpty() } ?: epData.linkEmbed
                 if (!link.isNullOrBlank()) {
                     val epName = epData.name ?: "Full"
+                    // Logic lấy số tập: Nếu tên là "Full" hoặc không có số -> null
                     val epNum = epName.filter { it.isDigit() }.toIntOrNull()
                     
                     episodes.add(newEpisode("$link@@@$sName") {
@@ -87,7 +88,7 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
             ActorData(actor = Actor(it.trim(), "")) 
         }
 
-        // SỬA: Lấy thể loại từ List<CategoryItem>
+        // Lấy danh sách thể loại từ List<CategoryItem>
         val tagsList = movie.category?.mapNotNull { it.name }
 
         return if (tvType == TvType.TvSeries) {
@@ -99,6 +100,7 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
                 this.tags = tagsList
             }
         } else {
+            // Với phim lẻ, lấy link đầu tiên để phát
             val firstLink = episodes.firstOrNull()?.data ?: ""
             newMovieLoadResponse(movie.name ?: "", url, TvType.Movie, firstLink) {
                 this.posterUrl = poster
