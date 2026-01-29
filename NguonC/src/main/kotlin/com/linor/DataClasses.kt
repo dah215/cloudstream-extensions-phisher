@@ -33,11 +33,9 @@ data class MovieDetailResponse(
     @JsonProperty("thumb_url") val thumbUrl: String? = null,
     @JsonProperty("poster_url") val posterUrl: String? = null,
     @JsonProperty("year") val year: Int? = null,
-    // Dùng Any? để chấp nhận mọi kiểu dữ liệu (String hoặc List)
-    @JsonProperty("actor") val actor: Any? = null,
+    @JsonProperty("actor") val actor: Any? = null, // Chấp nhận mọi kiểu dữ liệu
     @JsonProperty("episode_total") val episode_total: String? = null,
-    // Dùng Any? để chấp nhận mọi kiểu dữ liệu (List hoặc Map)
-    @JsonProperty("category") val category: Any? = null
+    @JsonProperty("category") val category: Any? = null // Chấp nhận mọi kiểu dữ liệu
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
