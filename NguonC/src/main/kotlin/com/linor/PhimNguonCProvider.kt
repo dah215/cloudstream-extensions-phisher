@@ -82,45 +82,43 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
             }
         }
 
-        val isTvSeries = movie.type == "series" || episodes.size > 1
-        val tvType = if (isTvSeries) TvType.TvSeries else TvType.Movie
-
-        // DỰ PHÒNG: Nếu không có tập nào, tạo tập ảo để hiện nút Xem
+        // DỰ PHÒNG: Nếu không tìm thấy tập nào, tạo tập ảo từ chính URL phim
+        // Điều này đảm bảo nút "Xem" luôn hiện, sau đó loadLinks sẽ xử lý tiếp
         if (episodes.isEmpty()) {
              episodes.add(newEpisode("$url@@@Nguồn C") {
-                 this.name = "Full Movie"
+                 this.name = "Xem Ngay"
                  this.season = 1
                  this.episode = 1
              })
         }
 
+        val isTvSeries = movie.type == "series" || episodes.size > 1
+        val tvType = if (isTvSeries) TvType.TvSeries else TvType.Movie
+
         val plot = movie.content?.replace(Regex("<.*?>"), "")?.trim()
         val poster = movie.posterUrl ?: movie.thumbUrl
         
-        // FIX LỖI ACTOR: Kiểm tra kiểu dữ liệu trước khi map
-        val actorsData = when (val a = movie.actor) {
-            is List<*> -> a.mapNotNull { it.toString() }.map { ActorData(actor = Actor(it, "")) }
-            is String -> a.split(",").map { ActorData(actor = Actor(it.trim(), "")) }
+        // Xử lý Actor đa hình
+        val actorList = when (val a = movie.actor) {
+            is String -> a.split(",").map { it.trim() }
+            is List<*> -> a.mapNotNull { it.toString() }
             else -> emptyList()
         }
+        val actorsData = actorList.map { ActorData(actor = Actor(it, "")) }
 
-        // FIX LỖI CATEGORY: Kiểm tra kiểu dữ liệu trước khi map
+        // Xử lý Category đa hình
         val tagsList = mutableListOf<String>()
         try {
             val cat = movie.category
             if (cat is List<*>) {
                 cat.forEach { item ->
-                    if (item is Map<*, *>) {
-                        (item["name"] as? String)?.let { tagsList.add(it) }
-                    }
+                    if (item is Map<*, *>) (item["name"] as? String)?.let { tagsList.add(it) }
                 }
             } else if (cat is Map<*, *>) {
                 cat.values.forEach { group ->
                     if (group is Map<*, *>) {
                         (group["list"] as? List<*>)?.forEach { item ->
-                            if (item is Map<*, *>) {
-                                (item["name"] as? String)?.let { tagsList.add(it) }
-                            }
+                            if (item is Map<*, *>) (item["name"] as? String)?.let { tagsList.add(it) }
                         }
                     }
                 }
@@ -157,7 +155,7 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         var url = parts.getOrNull(0) ?: return false
         val server = parts.getOrNull(1) ?: "Nguồn C"
 
-        // Xử lý link API (Fallback)
+        // Xử lý link API (Fallback từ bước load)
         if (url.contains("phim.nguonc.com/api/film")) {
              try {
                  val responseText = app.get(url).text
@@ -175,17 +173,20 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
              }
         }
 
-        if (url.contains(".m3u8")) {
-            callback.invoke(
-                newExtractorLink(
-                    name = server,
-                    source = this.name,
-                    url = url
-                )
+        // CHIẾN THUẬT: Thêm cả 2 loại link để đảm bảo có cái chạy được
+        
+        // 1. Thêm như link trực tiếp (Direct)
+        callback.invoke(
+            newExtractorLink(
+                name = "$server (Direct)",
+                source = this.name,
+                url = url
             )
-        } else {
-            loadExtractor(url, subtitleCallback, callback)
-        }
+        )
+
+        // 2. Thử bóc tách (Extract) nếu là link embed
+        // Hàm này sẽ tự động tìm video nếu link là trang web
+        loadExtractor(url, subtitleCallback, callback)
         
         return true
     }
