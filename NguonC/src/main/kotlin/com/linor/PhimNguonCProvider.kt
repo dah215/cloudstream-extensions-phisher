@@ -64,10 +64,8 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
             val dataList = server.serverData ?: server.items
             
             dataList?.forEach { epData ->
-                val link = epData.linkM3u8?.takeIf { it.isNotEmpty() } 
-                          ?: epData.m3u8?.takeIf { it.isNotEmpty() }
-                          ?: epData.linkEmbed?.takeIf { it.isNotEmpty() }
-                          ?: epData.embed
+                // Lấy link ưu tiên m3u8, nếu không có thì lấy embed
+                val link = epData.linkM3u8?.takeIf { it.isNotEmpty() } ?: epData.linkEmbed
                 
                 if (!link.isNullOrBlank()) {
                     val epName = epData.name ?: "Full"
@@ -85,44 +83,14 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val isTvSeries = movie.type == "series" || episodes.size > 1
         val tvType = if (isTvSeries) TvType.TvSeries else TvType.Movie
 
-        // CƠ CHẾ DỰ PHÒNG: Nếu không tìm thấy tập nào, tạo tập ảo chứa link API
-        if (episodes.isEmpty()) {
-             episodes.add(newEpisode("$url@@@Nguồn C") {
-                 this.name = "Full Movie"
-                 this.season = 1
-                 this.episode = 1
-             })
-        }
-
         val plot = movie.content?.replace(Regex("<.*?>"), "")?.trim()
         val poster = movie.posterUrl ?: movie.thumbUrl
         
-        val actorsData = try {
-            val actorList = when (val a = movie.actor) {
-                is String -> a.split(",").map { it.trim() }
-                is List<*> -> a.mapNotNull { it.toString() }
-                else -> emptyList()
-            }
-            actorList.map { ActorData(actor = Actor(it, "")) }
-        } catch (e: Exception) { null }
+        val actorsData = movie.actor?.map { 
+            ActorData(actor = Actor(it.trim(), "")) 
+        }
 
-        val tagsList = mutableListOf<String>()
-        try {
-            val cat = movie.category
-            if (cat is Map<*, *>) {
-                cat.values.forEach { group ->
-                    if (group is Map<*, *>) {
-                        (group["list"] as? List<*>)?.forEach { item ->
-                            if (item is Map<*, *>) (item["name"] as? String)?.let { tagsList.add(it) }
-                        }
-                    }
-                }
-            } else if (cat is List<*>) {
-                cat.forEach { item ->
-                    if (item is Map<*, *>) (item["name"] as? String)?.let { tagsList.add(it) }
-                }
-            }
-        } catch (e: Exception) { }
+        val tagsList = movie.category?.mapNotNull { it.name }
 
         return if (tvType == TvType.TvSeries) {
             newTvSeriesLoadResponse(movie.name ?: "", url, TvType.TvSeries, episodes) {
@@ -154,40 +122,36 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         var url = parts.getOrNull(0) ?: return false
         val server = parts.getOrNull(1) ?: "Nguồn C"
 
-        // QUAN TRỌNG: Xử lý link API (Cơ chế dự phòng)
-        // Nếu URL là link API, tải lại và lấy link video thật
+        // Xử lý trường hợp link API (Fallback)
         if (url.contains("phim.nguonc.com/api/film")) {
              try {
                  val responseText = app.get(url).text
                  val dataJson = tryParseJson<MovieInfo>(responseText)
-                 
-                 // Tìm tập đầu tiên trong danh sách
                  val ep = dataJson?.episodes?.firstOrNull()?.serverData?.firstOrNull() 
                          ?: dataJson?.episodes?.firstOrNull()?.items?.firstOrNull()
                  
-                 // Lấy link m3u8 hoặc embed
-                 val realLink = ep?.linkM3u8?.takeIf { it.isNotEmpty() } 
-                            ?: ep?.m3u8?.takeIf { it.isNotEmpty() }
-                            ?: ep?.linkEmbed 
-                            ?: ep?.embed
-                 
-                 if (!realLink.isNullOrBlank()) {
-                     url = realLink
-                 } else {
-                     return false // Không tìm thấy link video
-                 }
+                 url = ep?.linkM3u8?.takeIf { it.isNotEmpty() } ?: ep?.linkEmbed ?: return false
              } catch (e: Exception) {
                  return false
              }
         }
 
-        callback.invoke(
-            newExtractorLink(
-                name = server,
-                source = this.name,
-                url = url
+        // QUAN TRỌNG: Phân loại link để xử lý đúng
+        if (url.contains(".m3u8")) {
+            // Nếu là link m3u8 trực tiếp -> Phát luôn
+            callback.invoke(
+                newExtractorLink(
+                    name = server,
+                    source = this.name,
+                    url = url
+                )
             )
-        )
+        } else {
+            // Nếu là link Embed (trang web) -> Dùng loadExtractor để bóc tách
+            // Cloudstream sẽ tự động tìm video trong trang web đó
+            loadExtractor(url, subtitleCallback, callback)
+        }
+        
         return true
     }
 }
