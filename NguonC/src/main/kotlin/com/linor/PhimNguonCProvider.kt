@@ -62,15 +62,15 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         episodesList.forEachIndexed { index, server ->
             val sName = server.serverName ?: "Server ${index + 1}"
             server.serverData?.forEach { epData ->
-                // Lấy link: Ưu tiên m3u8, nếu rỗng thì lấy embed
-                val link = if (!epData.linkM3u8.isNullOrBlank()) epData.linkM3u8 else epData.linkEmbed
+                // Lấy link: Ưu tiên m3u8
+                val link = epData.linkM3u8?.takeIf { it.isNotEmpty() } ?: epData.linkEmbed
                 
                 if (!link.isNullOrBlank()) {
-                    val epNameRaw = epData.name ?: "Full"
-                    val epNum = epNameRaw.filter { it.isDigit() }.toIntOrNull()
+                    val epName = epData.name ?: "Full"
+                    val epNum = epName.filter { it.isDigit() }.toIntOrNull()
                     
                     episodes.add(newEpisode("$link@@@$sName") {
-                        this.name = if (epNameRaw.contains("Tập", true)) epNameRaw else "Tập $epNameRaw"
+                        this.name = if (epName.contains("Tập", true)) epName else "Tập $epName"
                         this.season = 1
                         this.episode = epNum
                     })
@@ -78,22 +78,17 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
             }
         }
 
-        // Logic xác định loại phim: Nếu có > 1 tập hoặc API bảo là series -> TvSeries
         val isTvSeries = movie.type == "series" || episodes.size > 1
         val tvType = if (isTvSeries) TvType.TvSeries else TvType.Movie
 
         val plot = movie.content?.replace(Regex("<.*?>"), "")?.trim()
         val poster = movie.posterUrl ?: movie.thumbUrl
         
-        // Xử lý Actor: Tách chuỗi bằng dấu phẩy
-        val actorsData = movie.casts?.split(",")?.map { 
+        val actorsData = movie.actor?.map { 
             ActorData(actor = Actor(it.trim(), "")) 
         }
 
-        // Xử lý Category: Lấy từ Map
-        val tagsList = movie.category?.values?.flatMap { group -> 
-            group.list?.mapNotNull { it.name } ?: emptyList() 
-        }
+        val tagsList = movie.category?.mapNotNull { it.name }
 
         return if (tvType == TvType.TvSeries) {
             newTvSeriesLoadResponse(movie.name ?: "", url, TvType.TvSeries, episodes) {
@@ -104,7 +99,7 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
                 this.tags = tagsList
             }
         } else {
-            // Với phim lẻ, lấy link đầu tiên để phát ngay
+            // Lấy link đầu tiên cho phim lẻ
             val firstLink = episodes.firstOrNull()?.data ?: ""
             newMovieLoadResponse(movie.name ?: "", url, TvType.Movie, firstLink) {
                 this.posterUrl = poster
