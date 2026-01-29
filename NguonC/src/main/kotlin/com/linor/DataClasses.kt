@@ -31,7 +31,7 @@ data class MovieDetailResponse(
     @JsonProperty("year") val year: Int? = null,
     @JsonProperty("actor") val actor: List<String>? = null,
     @JsonProperty("episode_total") val episode_total: String? = null,
-    // SỬA: Category là List chứ không phải Map
+    // API trả về List các Object, không phải Map
     @JsonProperty("category") val category: List<CategoryItem>? = null
 )
 
@@ -41,16 +41,15 @@ data class CategoryItem(
 
 data class MovieEpisodeResponse(
     @JsonProperty("server_name") val serverName: String? = null,
-    // SỬA QUAN TRỌNG: Dùng 'items' thay vì 'server_data'
-    @JsonProperty("items") val items: List<EpisodeData>? = null
+    // QUAN TRỌNG: Phải là server_data mới đúng với API hiện tại
+    @JsonProperty("server_data") val serverData: List<EpisodeData>? = null
 )
 
 data class EpisodeData(
     @JsonProperty("name") val name: String? = null,
     @JsonProperty("slug") val slug: String? = null,
-    // SỬA QUAN TRỌNG: Dùng 'm3u8' và 'embed' ngắn gọn
-    @JsonProperty("m3u8") val linkM3u8: String? = null,
-    @JsonProperty("embed") val linkEmbed: String? = null
+    @JsonProperty("link_m3u8") val linkM3u8: String? = null,
+    @JsonProperty("link_embed") val linkEmbed: String? = null
 )
 
 data class ParsedTitle(val title: String, val season: String)
