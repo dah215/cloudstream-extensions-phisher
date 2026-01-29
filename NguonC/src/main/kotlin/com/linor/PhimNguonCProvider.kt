@@ -4,6 +4,7 @@ package com.linor
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
+import com.linor.shared.Utils
 
 class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
     override var mainUrl = "https://phim.nguonc.com/api"
@@ -58,14 +59,17 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val episodesList = data.episodes ?: emptyList()
 
         val episodes = mutableListOf<Episode>()
+        
         episodesList.forEachIndexed { index, server ->
             val sName = server.serverName ?: "Server ${index + 1}"
-            server.serverData?.forEach { epData ->
+            // QUAN TRỌNG: Kiểm tra cả serverData và items
+            val dataList = server.serverData ?: server.items
+            
+            dataList?.forEach { epData ->
                 val link = epData.linkM3u8?.takeIf { it.isNotEmpty() } ?: epData.linkEmbed
                 if (!link.isNullOrBlank()) {
-                    val epName = epData.name ?: "Tập ?"
-                    // Fallback: Nếu không tìm thấy số tập, dùng index + 1 để đảm bảo luôn hiện
-                    val epNum = epName.filter { it.isDigit() }.toIntOrNull() 
+                    val epName = epData.name ?: "Full"
+                    val epNum = epName.filter { it.isDigit() }.toIntOrNull()
                     
                     episodes.add(newEpisode("$link@@@$sName") {
                         this.name = if (epName.contains("Tập", true)) epName else "Tập $epName"
@@ -79,15 +83,15 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val isTvSeries = movie.type == "series" || episodes.size > 1
         val tvType = if (isTvSeries) TvType.TvSeries else TvType.Movie
 
+        // Làm sạch nội dung mô tả
         val plot = movie.content?.replace(Regex("<.*?>"), "")?.trim()
         val poster = movie.posterUrl ?: movie.thumbUrl
         
-        // Fix Actor: Lấy trực tiếp từ List<String>
         val actorsData = movie.actor?.map { 
             ActorData(actor = Actor(it.trim(), "")) 
         }
 
-        // Lấy thể loại từ Map category
+        // Lấy danh sách thể loại để hiển thị Tags
         val tagsList = movie.category?.values?.flatMap { group -> 
             group.list?.mapNotNull { it.name } ?: emptyList() 
         }
