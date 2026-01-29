@@ -61,18 +61,14 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         
         episodesList.forEachIndexed { index, server ->
             val sName = server.serverName ?: "Server ${index + 1}"
-            // Kiểm tra cả serverData và items
             val dataList = server.serverData ?: server.items
             
             dataList?.forEach { epData ->
-                // Vét cạn mọi trường có thể chứa link
-                val link = epData.linkM3u8?.takeIf { it.isNotEmpty() }
-                    ?: epData.m3u8?.takeIf { it.isNotEmpty() }
-                    ?: epData.linkEmbed?.takeIf { it.isNotEmpty() }
-                    ?: epData.embed?.takeIf { it.isNotEmpty() }
-                    ?: epData.url?.takeIf { it.isNotEmpty() }
-                    ?: epData.source
-
+                val link = epData.linkM3u8?.takeIf { it.isNotEmpty() } 
+                          ?: epData.m3u8?.takeIf { it.isNotEmpty() }
+                          ?: epData.linkEmbed?.takeIf { it.isNotEmpty() }
+                          ?: epData.embed
+                
                 if (!link.isNullOrBlank()) {
                     val epName = epData.name ?: "Full"
                     val epNum = epName.filter { it.isDigit() }.toIntOrNull()
@@ -89,10 +85,8 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val isTvSeries = movie.type == "series" || episodes.size > 1
         val tvType = if (isTvSeries) TvType.TvSeries else TvType.Movie
 
-        // CƠ CHẾ DỰ PHÒNG: Nếu là phim lẻ mà không tìm thấy tập nào, tự tạo tập
-        if (tvType == TvType.Movie && episodes.isEmpty()) {
-             // Thử lấy link từ chính URL load (đôi khi API trả về link trực tiếp ở đâu đó, nhưng ở đây ta tạo dummy để hiện nút xem)
-             // Khi bấm xem, loadLinks sẽ xử lý lại
+        // CƠ CHẾ DỰ PHÒNG: Nếu không tìm thấy tập nào, tạo tập ảo chứa link API
+        if (episodes.isEmpty()) {
              episodes.add(newEpisode("$url@@@Nguồn C") {
                  this.name = "Full Movie"
                  this.season = 1
@@ -103,15 +97,15 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val plot = movie.content?.replace(Regex("<.*?>"), "")?.trim()
         val poster = movie.posterUrl ?: movie.thumbUrl
         
-        // Xử lý Actor đa hình
-        val actorList = when (val a = movie.actor) {
-            is String -> a.split(",").map { it.trim() }
-            is List<*> -> a.mapNotNull { it.toString() }
-            else -> emptyList()
-        }
-        val actorsData = actorList.map { ActorData(actor = Actor(it, "")) }
+        val actorsData = try {
+            val actorList = when (val a = movie.actor) {
+                is String -> a.split(",").map { it.trim() }
+                is List<*> -> a.mapNotNull { it.toString() }
+                else -> emptyList()
+            }
+            actorList.map { ActorData(actor = Actor(it, "")) }
+        } catch (e: Exception) { null }
 
-        // Xử lý Category đa hình
         val tagsList = mutableListOf<String>()
         try {
             val cat = movie.category
@@ -157,29 +151,41 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
         val parts = data.split("@@@")
-        val url = parts.getOrNull(0) ?: return false
+        var url = parts.getOrNull(0) ?: return false
         val server = parts.getOrNull(1) ?: "Nguồn C"
 
-        // Nếu URL là link API gốc (do cơ chế dự phòng), cần fetch lại để lấy link thật
-        var finalUrl = url
+        // QUAN TRỌNG: Xử lý link API (Cơ chế dự phòng)
+        // Nếu URL là link API, tải lại và lấy link video thật
         if (url.contains("phim.nguonc.com/api/film")) {
-             val responseText = app.get(url).text
-             val dataJson = tryParseJson<MovieInfo>(responseText)
-             val ep = dataJson?.episodes?.firstOrNull()?.serverData?.firstOrNull() 
-                     ?: dataJson?.episodes?.firstOrNull()?.items?.firstOrNull()
-             
-             finalUrl = ep?.linkM3u8?.takeIf { it.isNotEmpty() } 
-                        ?: ep?.m3u8?.takeIf { it.isNotEmpty() }
-                        ?: ep?.linkEmbed 
-                        ?: ep?.embed 
-                        ?: url
+             try {
+                 val responseText = app.get(url).text
+                 val dataJson = tryParseJson<MovieInfo>(responseText)
+                 
+                 // Tìm tập đầu tiên trong danh sách
+                 val ep = dataJson?.episodes?.firstOrNull()?.serverData?.firstOrNull() 
+                         ?: dataJson?.episodes?.firstOrNull()?.items?.firstOrNull()
+                 
+                 // Lấy link m3u8 hoặc embed
+                 val realLink = ep?.linkM3u8?.takeIf { it.isNotEmpty() } 
+                            ?: ep?.m3u8?.takeIf { it.isNotEmpty() }
+                            ?: ep?.linkEmbed 
+                            ?: ep?.embed
+                 
+                 if (!realLink.isNullOrBlank()) {
+                     url = realLink
+                 } else {
+                     return false // Không tìm thấy link video
+                 }
+             } catch (e: Exception) {
+                 return false
+             }
         }
 
         callback.invoke(
             newExtractorLink(
                 name = server,
                 source = this.name,
-                url = finalUrl
+                url = url
             )
         )
         return true
