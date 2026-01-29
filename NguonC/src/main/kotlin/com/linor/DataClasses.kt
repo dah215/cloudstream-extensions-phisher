@@ -33,16 +33,17 @@ data class MovieDetailResponse(
     @JsonProperty("thumb_url") val thumbUrl: String? = null,
     @JsonProperty("poster_url") val posterUrl: String? = null,
     @JsonProperty("year") val year: Int? = null,
-    @JsonProperty("actor") val actor: List<String>? = null,
+    // Dùng Any? để chấp nhận cả String lẫn List -> Hết lỗi Crash
+    @JsonProperty("actor") val actor: Any? = null,
     @JsonProperty("episode_total") val episode_total: String? = null,
-    // QUAN TRỌNG: Dùng Any để chấp nhận cả List và Map -> Hết lỗi Crash
+    // Dùng Any? để chấp nhận cả Map lẫn List -> Hết lỗi Crash
     @JsonProperty("category") val category: Any? = null
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class MovieEpisodeResponse(
     @JsonProperty("server_name") val serverName: String? = null,
-    // Dự phòng cả 2 trường hợp tên biến
+    // Khai báo cả 2 để bắt dính mọi trường hợp
     @JsonProperty("server_data") val serverData: List<EpisodeData>? = null,
     @JsonProperty("items") val items: List<EpisodeData>? = null
 )
@@ -51,10 +52,9 @@ data class MovieEpisodeResponse(
 data class EpisodeData(
     @JsonProperty("name") val name: String? = null,
     @JsonProperty("slug") val slug: String? = null,
-    // Dự phòng tất cả các kiểu tên link có thể có -> Hết lỗi Sắp có
     @JsonProperty("link_m3u8") val linkM3u8: String? = null,
-    @JsonProperty("m3u8") val m3u8: String? = null,
     @JsonProperty("link_embed") val linkEmbed: String? = null,
+    @JsonProperty("m3u8") val m3u8: String? = null,
     @JsonProperty("embed") val embed: String? = null
 )
 
