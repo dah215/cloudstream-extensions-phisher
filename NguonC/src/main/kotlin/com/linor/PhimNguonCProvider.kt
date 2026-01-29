@@ -82,8 +82,6 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
             }
         }
 
-        // DỰ PHÒNG: Nếu không tìm thấy tập nào, tạo tập ảo từ chính URL phim
-        // Điều này đảm bảo nút "Xem" luôn hiện, sau đó loadLinks sẽ xử lý tiếp
         if (episodes.isEmpty()) {
              episodes.add(newEpisode("$url@@@Nguồn C") {
                  this.name = "Xem Ngay"
@@ -98,15 +96,12 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         val plot = movie.content?.replace(Regex("<.*?>"), "")?.trim()
         val poster = movie.posterUrl ?: movie.thumbUrl
         
-        // Xử lý Actor đa hình
-        val actorList = when (val a = movie.actor) {
+        val actorsData = when (val a = movie.actor) {
             is String -> a.split(",").map { it.trim() }
             is List<*> -> a.mapNotNull { it.toString() }
             else -> emptyList()
-        }
-        val actorsData = actorList.map { ActorData(actor = Actor(it, "")) }
+        }.map { ActorData(actor = Actor(it, "")) }
 
-        // Xử lý Category đa hình
         val tagsList = mutableListOf<String>()
         try {
             val cat = movie.category
@@ -155,7 +150,7 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         var url = parts.getOrNull(0) ?: return false
         val server = parts.getOrNull(1) ?: "Nguồn C"
 
-        // Xử lý link API (Fallback từ bước load)
+        // 1. Xử lý link API (Fallback)
         if (url.contains("phim.nguonc.com/api/film")) {
              try {
                  val responseText = app.get(url).text
@@ -173,19 +168,60 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
              }
         }
 
-        // CHIẾN THUẬT: Thêm cả 2 loại link để đảm bảo có cái chạy được
-        
-        // 1. Thêm như link trực tiếp (Direct)
-        callback.invoke(
-            newExtractorLink(
-                name = "$server (Direct)",
-                source = this.name,
-                url = url
+        // 2. Nếu là link m3u8 trực tiếp -> Phát luôn
+        if (url.contains(".m3u8")) {
+            callback.invoke(
+                newExtractorLink(
+                    name = server,
+                    source = this.name,
+                    url = url
+                )
             )
-        )
+            return true
+        }
 
-        // 2. Thử bóc tách (Extract) nếu là link embed
-        // Hàm này sẽ tự động tìm video nếu link là trang web
+        // 3. Nếu là link Embed -> Thử bóc tách thủ công (Manual Extraction)
+        // Đây là bước quan trọng để xử lý các link embed cứng đầu
+        try {
+            val response = app.get(url, referer = "https://phim.nguonc.com/").text
+            
+            // Tìm file .m3u8 trong mã nguồn trang embed
+            val m3u8Regex = Regex("""(https?://[^"']+\.m3u8[^"']*)""")
+            val m3u8Match = m3u8Regex.find(response)
+            
+            if (m3u8Match != null) {
+                val extractedUrl = m3u8Match.groupValues[1]
+                callback.invoke(
+                    newExtractorLink(
+                        name = "$server (Extracted)",
+                        source = this.name,
+                        url = extractedUrl
+                    )
+                )
+                return true
+            }
+            
+            // Tìm file .mp4 trong mã nguồn
+            val mp4Regex = Regex("""(https?://[^"']+\.mp4[^"']*)""")
+            val mp4Match = mp4Regex.find(response)
+            
+            if (mp4Match != null) {
+                val extractedUrl = mp4Match.groupValues[1]
+                callback.invoke(
+                    newExtractorLink(
+                        name = "$server (MP4)",
+                        source = this.name,
+                        url = extractedUrl
+                    )
+                )
+                return true
+            }
+
+        } catch (e: Exception) {
+            // Nếu bóc tách thủ công thất bại, thử dùng loadExtractor mặc định
+        }
+
+        // 4. Cuối cùng mới dùng loadExtractor của hệ thống
         loadExtractor(url, subtitleCallback, callback)
         
         return true
