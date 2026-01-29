@@ -61,8 +61,16 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
         
         episodesList.forEachIndexed { index, server ->
             val sName = server.serverName ?: "Server ${index + 1}"
-            server.serverData?.forEach { epData ->
-                val link = epData.linkM3u8?.takeIf { it.isNotEmpty() } ?: epData.linkEmbed
+            // Kiểm tra cả 2 trường hợp tên biến chứa danh sách tập
+            val dataList = server.serverData ?: server.items
+            
+            dataList?.forEach { epData ->
+                // Kiểm tra tất cả các trường hợp tên biến chứa link
+                val link = epData.linkM3u8?.takeIf { it.isNotEmpty() } 
+                          ?: epData.m3u8?.takeIf { it.isNotEmpty() }
+                          ?: epData.linkEmbed?.takeIf { it.isNotEmpty() }
+                          ?: epData.embed
+                
                 if (!link.isNullOrBlank()) {
                     val epName = epData.name ?: "Full"
                     val epNum = epName.filter { it.isDigit() }.toIntOrNull()
@@ -86,8 +94,33 @@ class PhimNguonCProvider(val plugin: PhimNguonCPlugin) : MainAPI() {
             ActorData(actor = Actor(it.trim(), "")) 
         }
 
-        // SỬA LỖI CRASH: Lấy category từ List an toàn
-        val tagsList = movie.category?.mapNotNull { it.name }
+        // Xử lý Category đa hình (Map hoặc List)
+        val tagsList = mutableListOf<String>()
+        try {
+            val cat = movie.category
+            if (cat is Map<*, *>) {
+                // Trường hợp là Map (như phim bộ)
+                cat.values.forEach { group ->
+                    if (group is Map<*, *>) { // JSON object -> Map
+                        val list = group["list"] as? List<*>
+                        list?.forEach { item ->
+                            if (item is Map<*, *>) {
+                                (item["name"] as? String)?.let { tagsList.add(it) }
+                            }
+                        }
+                    }
+                }
+            } else if (cat is List<*>) {
+                // Trường hợp là List (như phim lẻ)
+                cat.forEach { item ->
+                    if (item is Map<*, *>) {
+                        (item["name"] as? String)?.let { tagsList.add(it) }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Bỏ qua lỗi parse category để không crash app
+        }
 
         return if (tvType == TvType.TvSeries) {
             newTvSeriesLoadResponse(movie.name ?: "", url, TvType.TvSeries, episodes) {
